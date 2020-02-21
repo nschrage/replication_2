@@ -9,7 +9,1696 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r}
+```{r replication_master echo = FALSE}
 
+# COMMENTS KEY
+
+# Niel Schrage's new comments will have one pound sign
+
+## Ryan Enos's original comments will have 2 pound signs 
+
+
+## replication_master.r replication code for Enos 'What the Demolition of Public
+## Housing Teaches Us About the Impact of Racial Threat on Political Behavior'
+## June 2014, R.D. Enos
+
+
+rm(list = ls())
+
+## load necessary libraries THE PACKAGES BELOW MAY NEED TO BE INSTALLED USING
+## install.packages('x'), WHERE X IS THE PACKAGE NAME
+## install.packages("ei",repos = NULL, type="source")
+
+# this code uses some packages that I've never heard of. let's see what they do.
+
+# this package is about statistical estimates.
+library(ei)
+# package helpful for matching treated and control groups with similar covariate
+# distributions.
+library(MatchIt)
+# package for producing simple weighted statistics
+library(weights)
+# simple bootstrapping -- didn't know this existed.
+library(simpleboot)
+# helpful statistics package, especially for modeling
+library(Zelig)
+# package that helps format latex objects side by side 
+library(apsrtable)
+
+# for the purpose of commenting through the code to gain a better understanding,
+# I placed all the different scripts (which are called for right here) in the
+# same r mark down document. From my limited knowledge of functions, i'm pretty
+# sure cat() means callling a previously made function. let's go through each of
+# these scripts one at a time. the voter turnout script is MUCH longer than
+# either of the other two. I also don't really understand why there are the long
+# lines of hashtags... does that call the function at a specific place in the
+# document. what is the benefit of doing it this way?
+
+## This portion of the code produces the estimates of voter turnout
+cat("################################# \n Beginning turnout estimation... \n ######################## \n \n")
+source("scripts/turnout.r") ## revert back to original numbers before releasing
+
+cat("################################# \n Beginning vote choice estimation... \n ######################## \n \n")
+## This portion of the code produces the estimates of vote choice
+source("scripts/vote_choice.r")
+
+cat("################################# \n Creating output... \n ######################## \n \n")
+source("scripts/output_create.r")
 ```
 
+```{r voter turnout, echo = FALSE}
+## turnout.r
+## estimate the quantities for the turnout section of Enos Chicago AJPS
+## RdE June 2014
+
+# ideally in a future work session I'll go through and make new chunks for each
+# thing. a little hard to work with as is is right now
+
+ptm <- proc.time() ## start time of analysis
+
+data <- read.csv("indata_static/data.turnout.csv")
+## set some data as factors for use below
+data$reg <- as.Date(data$reg)
+data$p <- as.factor(data$p)
+data$s <- as.factor(data$s)
+
+## distances used repeatedly in estimation below
+
+# setting up standard distances to be used later. this could have been helpful
+# on pset 3.
+dists <- seq(from = 100, to = 1000, by = 100)
+
+## basic diff in diffs in paper, estimated across multiple definitions of white and distances
+cat("begin basic difference-in-differences estimation \n")
+
+namepcts <- c(seq(from = .91, to = .96, by = .01), .975, .99, 1)
+
+## matrices for stroing results
+
+# typo lol... storing. but makes sense to use variables for namepcts and
+# dists... makes this process a whole lot easier.
+res.mat <- matrix(nrow = length(namepcts), ncol = length(dists))
+
+# setting up a number of new matricies on that original one for different
+# groups. what does conf.boot mean... is it like confidence interval?
+
+white.treat.N <- res.mat
+white.treat.effect.mean.boot <- res.mat
+white.treat.effect.conf.boot.lower <- res.mat
+white.treat.effect.conf.boot.upper <- res.mat
+
+black.treat.N <- res.mat
+black.treat.effect.mean.boot <- res.mat
+black.treat.effect.conf.boot.lower <- res.mat
+black.treat.effect.conf.boot.upper <- res.mat
+####################################
+
+## registration is Illionis is cutoff 27 days prior to election day, limit to
+## these individuals
+
+# interesting, I didn't know that. the above was a helpful comment. I'm not sure
+# I'm doing this correctly. I'm not positive as to what all the code does.
+# filtering through the data.
+use.data <- data[data$reg < "2000-10-10" & is.na(data$reg) == F, ]
+
+## loop through definitions of white and distances and estimate at each
+## combination
+for (j in 1:length(namepcts)) {
+  ## define a treatment and control group for each name percent
+  useW <- use.data[use.data$whitename >= namepcts[j], ]
+  useB <- use.data[use.data$blackname >= namepcts[j], ]
+  
+  # wait what is whitename/blackname -- how is this determined. that had not
+  # come up before. is it just part of the data set... could be something I dive
+  # into more detail later.
+  
+  # what is demo.distance...? 
+
+  for (h in 1:length(dists)) {
+    Wtreat <- useW[useW$demo.distance <= dists[h], ]
+    Btreat <- useB[useB$demo.distance <= dists[h], ]
+    Wcont <- useW[useW$demo.distance > dists[h], ]
+    Bcont <- useB[useB$demo.distance > dists[h], ]
+    
+    # NESTED FOUR LOOP! defining treatment... still confused about how namepcts
+    # and dists come into this... need to go through this code and look at what
+    # it is doing in more depth
+
+    white.treat.N[j, h] <- nrow(Wtreat)
+    black.treat.N[j, h] <- nrow(Btreat)
+
+    ## for white and black subjects, perform t test of differences of means with
+    ## boostrapped standard errors
+    if (white.treat.N[j, h] > 0) {
+      white.boot <- two.boot((Wtreat$vote2004 - Wtreat$vote2000), (Wcont$vote2004 - Wcont$vote2000), mean, R = 1000, na.rm = T)
+      white.treat.effect.mean.boot[j, h] <- white.boot$t0
+      white.boot.ci <- boot.ci(white.boot, type = "basic")
+      white.treat.effect.conf.boot.lower[j, h] <- white.boot.ci$basic[4]
+      white.treat.effect.conf.boot.upper[j, h] <- white.boot.ci$basic[5]
+    }
+    
+    # running t tests. 
+    # calculating confidence intervals...
+
+    if (black.treat.N[j, h] > 0) {
+      black.boot <- two.boot((Btreat$vote2004 - Btreat$vote2000), (Bcont$vote2004 - Bcont$vote2000), mean, R = 1000, na.rm = T)
+      black.treat.effect.mean.boot[j, h] <- black.boot$t0
+      black.boot.ci <- boot.ci(black.boot, type = "basic")
+      black.treat.effect.conf.boot.lower[j, h] <- black.boot.ci$basic[4]
+      black.treat.effect.conf.boot.upper[j, h] <- black.boot.ci$basic[5]
+    }
+  }
+}
+
+
+# proc.time determines how much real and CPU time (in seconds) the currently
+# running R process has already taken. is replicating this code going to fry my
+# computer?
+time.elapsed <- proc.time() - ptm ## end time
+cat(paste("total elapsed time:", time.elapsed[3], "\n \n", sep = " "))
+
+################################################################
+################################################################
+
+## parallel trends tests change in turnout overtime for black and white,
+## treatment and control
+
+########################################
+
+cat("beginning parallel trends test \n")
+
+## these are the elections to look at
+
+# only five election cycles... sample size. is it representative of reality?
+elections <- c("vote1996", "vote1998", "vote2000", "vote2002", "vote2004")
+
+## matrices for storing results
+outmat <- matrix(nrow = length(elections), ncol = 4)
+colnames(outmat) <- c("white.treatment", "white.control", "black.treatment", "black.control")
+## use different registration cutoff here because going all the way back to 1996
+use.data <- data[data$reg < "1996-10-08" & is.na(data$reg) == F, ]
+
+## define a treatment and control group for each name percent
+
+# is this how it is calculated... by 97.5% likelihood W/B... I think we were
+# thinking of using this for blocking project, but decided AGAINST it. why was
+# it done here... is this standard. i'm not really making a normative claim i
+# just don't know.
+useW <- use.data[use.data$whitename >= .975, ]
+useB <- use.data[use.data$blackname >= .975, ]
+
+## set distance for parallel trends test to 200 meters, can be tested at other distances too
+Wtreat <- useW[useW$demo.distance <= 200, ]
+Btreat <- useB[useB$demo.distance <= 200, ]
+Wcont <- useW[useW$demo.distance > 200, ]
+Bcont <- useB[useB$demo.distance > 200, ]
+
+WtreatN <- nrow(Wtreat)
+BtreatN <- nrow(Btreat)
+WcontN <- nrow(Wcont)
+BcontN <- nrow(Bcont)
+
+## test turnout across difference elections
+for (i in 1:length(elections)) {
+  election <- elections[i]
+  outmat[i, "white.treatment"] <- sum(Wtreat[election], na.rm = T) / WtreatN
+  outmat[i, "black.treatment"] <- sum(Btreat[election], na.rm = T) / BtreatN
+  outmat[i, "white.control"] <- sum(Wcont[election], na.rm = T) / WcontN
+  outmat[i, "black.control"] <- sum(Bcont[election], na.rm = T) / BcontN
+}
+
+parallel.trends <- outmat
+
+time.elapsed <- proc.time() - ptm ## end time
+cat(paste("total elapsed time:", time.elapsed[3], "\n \n", sep = " "))
+
+####################################################################
+## now test for matched white subjects
+##################################################################
+cat("beginning tests with matched white subjects \n")
+
+## mats for storage
+
+# what is a mat for storage?
+outmat <- matrix(ncol = 4, nrow = length(dists))
+colnames(outmat) <- c("coefficient", "stdev", "N.treatment", "N.control")
+
+## define data that will bs used for series of tests below
+white.data <- data[data$reg < "2000-10-10" & is.na(data$reg) == F, ]
+
+## only need subjects who qualify by name pcts
+white.data <- white.data[white.data$whitename >= .975, ]
+
+## only can use complete cases for matching, so extract those, first extract needed columns
+use.data <- white.data[, c("vote.change", "demo.distance", "p", "s", "age", "age.squared", "medianincome")]
+use.data <- use.data[complete.cases(use.data), ]
+
+## cycle through distances and match subjects from control groups defined at progressively smaller distances
+
+# determining if house was demolished? or in what range? 
+for (i in 1:length(dists)) {
+  use.data$demolished <- ifelse(use.data$demo.distance <= dists[i], 1, 0) 
+  ## define treatment group by distance from projects
+  ## perform match
+  m.out <- matchit(demolished ~ p + s + age + medianincome,
+    data = use.data,
+    method = "nearest"
+  )
+  m.data <- match.data(m.out) ## extract matched data
+  
+  # i don't really know all that much about matched information... how does this
+  # work... something to read up on.
+
+  ## linear regression with the treatment variable and controls
+  out.reg <- lm(vote.change ~ demolished + p + s + age + age.squared + medianincome,
+    data = m.data
+  )
+
+  ## now estimate bootstrapped confidence intervals
+  N.R <- 1000
+  out.boot <- lm.boot(out.reg, R = N.R)
+  ## sometimes bad draws on the sparse factors cause trouble on estimating
+  ## standard errors, so put in try functions reduce size of simulation for
+  ## sparse data to point that is needed
+  
+  # above is something to consider later on in the replication. also connects to
+  # what we were talking about in class last week.
+  repeat {
+    res.try <- try(summary(out.boot), silent = T)
+    if (class(res.try) == "try-error") {
+      N.R <- N.R - 1
+      out.boot <- lm.boot(out.reg, R = N.R)
+      if (N.R < 50) {
+        N.R. <- 1000
+      }
+    }
+    if (class(res.try) != "try-error") break()
+  }
+
+
+  # what are outmat -- no idea... 
+  outmat[i, "coefficient"] <- out.reg$coefficients["demolished"]
+  outmat[i, "stdev"] <- summary(out.boot)$stdev.params["demolished"]
+  outmat[i, "N.treatment"] <- nrow(m.data[m.data$demolished == T, ])
+  outmat[i, "N.control"] <- nrow(m.data[m.data$demolished == F, ])
+}
+
+## rename matrix for use in printing later
+white.match.basic <- outmat
+
+time.elapsed <- proc.time() - ptm ## end time
+cat(paste("total elapsed time:", time.elapsed[3], "\n \n", sep = " "))
+
+
+##############################################################
+## now test for matched white subjects now using property controls
+#######################################
+cat("beginning tests with matched white subjects using property controls \n")
+
+## mats for storage
+outmat <- matrix(ncol = 4, nrow = length(dists))
+colnames(outmat) <- c("coefficient", "stdev", "N.treatment", "N.control")
+
+## only can use complete cases for matching, so extract those, first extract needed columns
+use.data <- white.data[, c("vote.change", "demo.distance", "p", "s", "age", "age.squared", "medianincome", "prior.avg.value", "deeded.strict")]
+use.data <- use.data[complete.cases(use.data), ]
+
+## use same process as above, except control for property ownership and value of property
+for (i in 1:length(dists)) {
+  use.data$demolished <- ifelse(use.data$demo.distance <= dists[i], 1, 0)
+  m.out <- matchit(demolished ~ p + s + age + medianincome + prior.avg.value + deeded.strict,
+    data = use.data,
+    method = "nearest"
+  )
+  m.data <- match.data(m.out)
+
+  out.reg <- lm(vote.change ~ demolished + p + s + age + age.squared + medianincome + prior.avg.value + deeded.strict, data = m.data)
+
+  ## bootstrap the standard errors
+  N.R <- 1000
+  out.boot <- lm.boot(out.reg, R = N.R)
+  ## sometimes bad draws on the sparse factors cause trouble on estimating standard errors, so put in try functions
+  repeat {
+    res.try <- try(summary(out.boot), silent = T)
+    if (class(res.try) == "try-error") {
+      N.R <- N.R - 1
+      out.boot <- lm.boot(out.reg, R = N.R)
+      if (N.R < 50) {
+        N.R. <- 1000
+      }
+    }
+    if (class(res.try) != "try-error") break()
+  }
+
+  outmat[i, "coefficient"] <- out.reg$coefficients["demolished"]
+  outmat[i, "stdev"] <- summary(out.boot)$stdev.params["demolished"]
+  outmat[i, "N.treatment"] <- nrow(m.data[m.data$demolished == T, ])
+  outmat[i, "N.control"] <- nrow(m.data[m.data$demolished == F, ])
+}
+
+## rename matrix for use in printing later
+white.match.basic.property <- outmat
+
+time.elapsed <- proc.time() - ptm ## end time
+cat(paste("total elapsed time:", time.elapsed[3], "\n \n", sep = " "))
+
+
+
+##############################################################
+
+## now test for matched white subjects against other whites near non-demolished
+## projects
+
+#######################################
+cat("beginning tests with matched white subjects near non-demolished projects \n")
+
+outmat <- matrix(ncol = 4, nrow = length(dists))
+outmat.diffs <- matrix(ncol = 4, nrow = length(dists))
+colnames(outmat) <- c("coefficient", "stdev", "N.treatment", "N.control")
+colnames(outmat.diffs) <- c("mean.diff", "low.ci", "high.ci", "N")
+
+use.data <- white.data[, c("vote.change", "demo.distance", "nondemo.distance", "p", "s", "age", "age.squared", "medianincome")]
+use.data <- use.data[complete.cases(use.data), ]
+
+for (i in 1:length(dists)) {
+  ## define treatment group as living near demolished or non-demolished project
+  this.data <- use.data[use.data$demo.distance <= dists[i] | use.data$nondemo.distance <= dists[i], ]
+  
+  # walk through this line by line. if demo distance is less than or equal to
+  # interated distance (which is?) -- demolished or non demolished projects.
+  # which projects were reconstructed? could there be possible confounding
+  # factors there?
+  
+  # ALSO: this.data and use.data are super unhelpful variable names. 
+
+  ## create variable separating demolished from non-demolished
+  this.data$demolished <- ifelse(this.data$demo.distance <= dists[i], 1, 0)
+
+  this.data$combo.distance <- ifelse(this.data$demolished == 1, this.data$demo.distance, this.data$nondemo.distance)
+  m.out <- matchit(demolished ~ combo.distance + p + s + age + age.squared + medianincome,
+    data = this.data,
+    method = "nearest",
+    replace = T
+  ) ## can replaced with replace = T to demonstrate robustness
+  m.data <- match.data(m.out)
+
+  out.reg <- lm(vote.change ~ demolished + combo.distance + p + s + age + age.squared + medianincome, data = m.data)
+
+  ## bootstrap the standard errors
+  N.R <- 1000
+  out.boot <- lm.boot(out.reg, 1000)
+  ## sometimes bad draws on the sparse factors cause trouble on estimating
+  ## standard errors, so put in try functions
+  repeat {
+    res.try <- try(summary(out.boot), silent = T)
+    if (class(res.try) == "try-error") {
+      N.R <- N.R - 1
+      out.boot <- lm.boot(out.reg, R = N.R)
+      if (N.R < 50) {
+        N.R. <- 1000
+      }
+    }
+    if (class(res.try) != "try-error") break()
+  }
+
+  ## bootstrap diff in diff
+  mean.boot <- two.boot(
+    sample1 = m.data$vote.change[m.data$demolished == 1],
+    sample2 = m.data$vote.change[m.data$demolished == 0],
+    FUN = mean,
+    R = 10000,## need many draws because ci's below require them
+    na.rm = T
+  )
+  ci.boot <- boot.ci(mean.boot)
+
+  outmat[i, "coefficient"] <- out.reg$coefficients["demolished"]
+  outmat[i, "stdev"] <- summary(out.boot)$stdev.params["demolished"]
+  outmat[i, "N.treatment"] <- nrow(m.data[m.data$demolished == T, ])
+  outmat[i, "N.control"] <- nrow(m.data[m.data$demolished == F, ])
+
+  outmat.diffs[i, "mean.diff"] <- mean.boot$t0
+  outmat.diffs[i, "low.ci"] <- ci.boot$normal[2] ## extracting the normal approximation, rather than regular, for 95% confidence interval
+  outmat.diffs[i, "high.ci"] <- ci.boot$basic[3]
+  outmat.diffs[i, "N"] <- length(mean.boot$data)
+}
+
+## rename matrix for use in printing later
+white.match.nondemolished <- outmat
+white.match.nondemolished.diffs <- outmat.diffs
+
+time.elapsed <- proc.time() - ptm ## end time
+cat(paste("total elapsed time:", time.elapsed[3], "\n \n", sep = " "))
+
+
+
+
+
+##############################################################
+
+## now test for matched white subjects against other whites near non-demolished
+## projects controlling for property
+
+#######################################
+cat("beginning tests with matched white subjects near non-demolished projects with property controls \n")
+
+
+# controlling for property... a lot of these mini chunks are super similar with like one difference. 
+
+outmat <- matrix(ncol = 4, nrow = length(dists))
+outmat.diffs <- matrix(ncol = 4, nrow = length(dists))
+colnames(outmat) <- c("coefficient", "stdev", "N.treatment", "N.control")
+colnames(outmat.diffs) <- c("mean.diff", "low.ci", "high.ci", "N")
+
+
+use.data <- white.data[, c("vote.change", "demo.distance", "nondemo.distance", "p", "s", "age", "age.squared", "medianincome", "prior.avg.value", "deeded.strict")]
+use.data <- use.data[complete.cases(use.data), ]
+
+
+for (i in 1:length(dists)) {
+  this.data <- use.data[use.data$demo.distance <= dists[i] | use.data$nondemo.distance <= dists[i], ]
+
+  ## create variable separating demolished from non-demolished
+  this.data$demolished <- ifelse(this.data$demo.distance <= dists[i], 1, 0)
+
+  this.data$combo.distance <- ifelse(this.data$demolished == 1, this.data$demo.distance, this.data$nondemo.distance)
+  m.out <- matchit(demolished ~ combo.distance + p + s + age + age.squared + medianincome + prior.avg.value + deeded.strict,
+    data = this.data,
+    method = "nearest",
+    replace = T
+  ) ## can replaced with replace = T to demonstrate robustness
+  m.data <- match.data(m.out)
+
+  out.reg <- lm(vote.change ~ demolished + combo.distance + p + s + age + age.squared + prior.avg.value + deeded.strict, data = m.data)
+
+  ## bootstrap the standard errors
+  ## bootstrap the standard errors
+  out.boot <- lm.boot(out.reg, 1000)
+  N.R <- 1000
+  ## sometimes bad draws on the sparse factors cause trouble on estimating standard errors, so put in try functions
+  repeat {
+    res.try <- try(summary(out.boot), silent = T)
+    if (class(res.try) == "try-error") {
+      N.R <- N.R - 1
+      out.boot <- lm.boot(out.reg, R = N.R)
+      if (N.R < 50) {
+        N.R. <- 1000
+      }
+    }
+    if (class(res.try) != "try-error") break()
+  }
+
+  ## bootstrap diff in diff
+  mean.boot <- two.boot(
+    sample1 = m.data$vote.change[m.data$demolished == 1],
+    sample2 = m.data$vote.change[m.data$demolished == 0],
+    FUN = mean,
+    R = 10000, ## need many draws because ci's below require them
+    na.rm = T
+  )
+  ci.boot <- boot.ci(mean.boot)
+
+  ## store values
+  outmat[i, "coefficient"] <- out.reg$coefficients["demolished"]
+  outmat[i, "stdev"] <- summary(out.boot)$stdev.params["demolished"]
+  outmat[i, "N.treatment"] <- nrow(m.data[m.data$demolished == T, ])
+  outmat[i, "N.control"] <- nrow(m.data[m.data$demolished == F, ])
+
+  outmat.diffs[i, "mean.diff"] <- mean.boot$t0
+  outmat.diffs[i, "low.ci"] <- ci.boot$normal[2] ## extracting the normal approximation, rather than regular, for 95% confidence interval
+  outmat.diffs[i, "high.ci"] <- ci.boot$normal[3]
+  outmat.diffs[i, "N"] <- length(mean.boot$data)
+}
+
+## rename matrix for use in printing later
+white.match.nondemolished.property <- outmat
+white.match.nondemolished.diffs.property <- outmat.diffs
+
+time.elapsed <- proc.time() - ptm ## end time
+cat(paste("total elapsed time:", time.elapsed[3], "\n \n", sep = " "))
+
+
+
+##############################################################
+
+## now test for matched white subjects against other whites near non-demolished
+## projects controlling for local racial context
+
+#######################################
+cat("beginning tests with matched white subjects near non-demolished projects with local race context controls \n")
+
+# just the same thing controlling for a different factor... interesting to see
+# how it all gets put together in the end.
+
+outmat <- matrix(ncol = 4, nrow = length(dists))
+outmat.diffs <- matrix(ncol = 4, nrow = length(dists))
+colnames(outmat) <- c("coefficient", "stdev", "N.treatment", "N.control")
+colnames(outmat.diffs) <- c("mean.diff", "low.ci", "high.ci", "N")
+
+use.data <- white.data[, c("vote.change", "demo.distance", "nondemo.distance", "p", "s", "age", "age.squared", "medianincome", "pctblack")]
+use.data <- use.data[complete.cases(use.data), ]
+
+for (i in 1:length(dists)) {
+  this.data <- use.data[use.data$demo.distance <= dists[i] | use.data$nondemo.distance <= dists[i], ]
+
+  ## create variable separating demolished from non-demolished
+  this.data$demolished <- ifelse(this.data$demo.distance <= dists[i], 1, 0)
+
+  this.data$combo.distance <- ifelse(this.data$demolished == 1, this.data$demo.distance, this.data$nondemo.distance)
+  m.out <- matchit(demolished ~ combo.distance + p + s + age + age.squared + medianincome + pctblack,
+    data = this.data,
+    method = "nearest",
+    replace = T
+  ) ## can replaced with replace = T to demonstrate robustness
+  m.data <- match.data(m.out)
+
+
+  out.reg <- lm(vote.change ~ demolished + combo.distance + p + s + age + age.squared + medianincome + pctblack, data = m.data)
+
+  ## bootstrap the standard errors
+  N.R <- 1000
+  out.boot <- lm.boot(out.reg, 1000)
+  ## sometimes bad draws on the sparse factors cause trouble on estimating standard errors, so put in try functions
+  repeat {
+    res.try <- try(summary(out.boot), silent = T)
+    if (class(res.try) == "try-error") {
+      N.R <- N.R - 1
+      out.boot <- lm.boot(out.reg, R = N.R)
+      if (N.R < 50) {
+        N.R. <- 1000
+      }
+    }
+    if (class(res.try) != "try-error") break()
+  }
+
+  ## bootstrap diff in diff
+  mean.boot <- two.boot(
+    sample1 = m.data$vote.change[m.data$demolished == 1],
+    sample2 = m.data$vote.change[m.data$demolished == 0],
+    FUN = mean,
+    R = 10000, ## need many draws because ci's below require them
+    na.rm = T
+  )
+  ci.boot <- boot.ci(mean.boot)
+
+  outmat[i, "coefficient"] <- out.reg$coefficients["demolished"]
+  outmat[i, "stdev"] <- summary(out.boot)$stdev.params["demolished"]
+  outmat[i, "N.treatment"] <- nrow(m.data[m.data$demolished == T, ])
+  outmat[i, "N.control"] <- nrow(m.data[m.data$demolished == F, ])
+
+  outmat.diffs[i, "mean.diff"] <- mean.boot$t0
+  outmat.diffs[i, "low.ci"] <- ci.boot$normal[2] ## extracting the normal approximation, rather than regular, for 95% confidence interval
+  outmat.diffs[i, "high.ci"] <- ci.boot$normal[3]
+  outmat.diffs[i, "N"] <- length(mean.boot$data)
+}
+
+## rename matrix for use in printing later
+white.match.nondemolished.localrace <- outmat
+white.match.nondemolished.diffs.localrace <- outmat.diffs
+
+time.elapsed <- proc.time() - ptm ## end time
+cat(paste("total elapsed time:", time.elapsed[3], "\n \n", sep = " "))
+
+
+##########################################################
+
+## match white subjects with black subjects
+
+###########################################################
+cat("beginning tests with matched black subjects \n")
+
+outmat <- matrix(ncol = 4, nrow = length(dists))
+outmat.diffs <- matrix(ncol = 4, nrow = length(dists))
+colnames(outmat) <- c("coefficient", "stdev", "N.treatment", "N.control")
+colnames(outmat.diffs) <- c("mean.diff", "low.ci", "high.ci", "N")
+
+white.black.data <- data[data$reg < "2000-10-10" & is.na(data$reg) == F, ]
+white.black.data$white <- ifelse(white.black.data$whitename >= .975, T, F)
+white.black.data$black <- ifelse(white.black.data$blackname >= .975, T, F)
+
+## only need subjects who qualify by name pcts
+white.black.data <- white.black.data[white.black.data$white == T | white.black.data$black == T, ]
+
+## only can use complete cases for matching, so extract those, first extract needed columns
+use.data <- white.black.data[, c("vote.change", "white", "demo.distance", "p", "s", "age", "age.squared", "medianincome", "demo.gid")]
+use.data <- use.data[complete.cases(use.data), ]
+
+for (i in 1:length(dists)) {
+  ## define treatment group by race
+  this.data <- use.data[use.data$demo.distance <= dists[i], ]
+  m.out <- matchit(white ~ demo.distance + p + s + age + age.squared + medianincome + as.factor(demo.gid),
+    data = this.data,
+    method = "nearest"
+  )
+  m.data <- match.data(m.out)
+
+  out.reg <- lm(vote.change ~ white + demo.distance + p + s + age + age.squared + medianincome, data = m.data)
+
+  ## bootstrap the standard errors
+  N.R <- 1000
+  out.boot <- lm.boot(out.reg, R = N.R)
+  ## sometimes bad draws on the sparse factors cause trouble on estimating standard errors, so put in try functions
+  repeat {
+    res.try <- try(summary(out.boot), silent = T)
+    if (class(res.try) == "try-error") {
+      N.R <- N.R - 1
+      out.boot <- lm.boot(out.reg, R = N.R)
+      if (N.R < 50) {
+        N.R. <- 1000
+      }
+    }
+    if (class(res.try) != "try-error") break()
+  }
+  ## bootstrap diff in diff
+  N.R <- 10000
+  mean.boot <- two.boot(
+    sample1 = m.data$vote.change[m.data$white == 1],
+    sample2 = m.data$vote.change[m.data$white == 0],
+    FUN = mean,
+    R = N.R, ## need many draws because ci's below require them
+    na.rm = T
+  )
+  ### need to increase number of ci's sometimes, so use try function
+  repeat{
+    ci.try <- try(boot.ci(mean.boot), silent = T)
+    if (class(ci.try) == "try-error") {
+      N.R <- N.R + 10000
+      mean.boot <- two.boot(
+        sample1 = m.data$vote.change[m.data$white == 1],
+        sample2 = m.data$vote.change[m.data$white == 0],
+        FUN = mean,
+        R = N.R, ## need many draws because ci's below require them
+        na.rm = T
+      )
+    }
+    if (class(ci.try) != "try-error") {
+      ci.boot <- boot.ci(mean.boot)
+      break()
+    }
+  }
+
+  outmat[i, "coefficient"] <- out.reg$coefficients["whiteTRUE"]
+  outmat[i, "stdev"] <- summary(out.boot)$stdev.params["whiteTRUE"]
+  outmat[i, "N.treatment"] <- nrow(m.data[m.data$white == T, ])
+  outmat[i, "N.control"] <- nrow(m.data[m.data$white == F, ])
+
+  outmat.diffs[i, "mean.diff"] <- mean.boot$t0
+  outmat.diffs[i, "low.ci"] <- ci.boot$normal[2] ## extracting the normal approximation, rather than regular, for 95% confidence interval
+  outmat.diffs[i, "high.ci"] <- ci.boot$normal[3]
+  outmat.diffs[i, "N"] <- length(mean.boot$data)
+}
+
+## rename matrix for use in printing later
+white.match.black <- outmat
+white.match.black.diffs <- outmat.diffs
+
+time.elapsed <- proc.time() - ptm ## end time
+cat(paste("total elapsed time:", time.elapsed[3], "\n \n", sep = " "))
+
+
+
+##########################################################
+## match white subjects with black subjects
+## use property
+###########################################################
+cat("beginning tests with matched black subjects and property controls \n")
+
+outmat <- matrix(ncol = 4, nrow = length(dists))
+outmat.diffs <- matrix(ncol = 4, nrow = length(dists))
+colnames(outmat) <- c("coefficient", "stdev", "N.treatment", "N.control")
+colnames(outmat.diffs) <- c("mean.diff", "low.ci", "high.ci", "N")
+
+## only can use complete cases for matching, so extract those, first extract needed columns
+use.data <- white.black.data[, c(
+  "vote.change", "white", "demo.distance", "p", "s", "age", "age.squared", "medianincome",
+  "prior.avg.value", "deeded.strict", "demo.gid"
+)]
+print(nrow(use.data))
+use.data <- use.data[complete.cases(use.data), ]
+
+for (i in 1:length(dists)) {
+  print(i)
+  ptm <- proc.time() ## start time
+
+  this.data <- use.data[use.data$demo.distance <= dists[i], ]
+  m.out <- matchit(white ~ demo.distance + p + s + age + age.squared + medianincome + prior.avg.value + deeded.strict + as.factor(demo.gid),
+    data = this.data,
+    method = "nearest"
+  )
+  m.data <- match.data(m.out)
+
+  out.reg <- lm(vote.change ~ white + demo.distance + p + s + age + age.squared + prior.avg.value + deeded.strict, data = m.data)
+
+  ## bootstrap the standard errors
+  ## bootstrap the standard errors
+  N.R <- 1000
+  out.boot <- lm.boot(out.reg, R = N.R)
+  ## sometimes bad draws on the sparse factors cause trouble on estimating standard errors, so put in try functions
+  repeat {
+    res.try <- try(summary(out.boot), silent = T)
+    if (class(res.try) == "try-error") {
+      N.R <- N.R - 1
+      out.boot <- lm.boot(out.reg, R = N.R)
+      if (N.R < 50) {
+        N.R. <- 1000
+      }
+    }
+    if (class(res.try) != "try-error") break()
+  }
+  ## bootstrap diff in diff
+  N.R <- 10000
+  mean.boot <- two.boot(
+    sample1 = m.data$vote.change[m.data$white == 1],
+    sample2 = m.data$vote.change[m.data$white == 0],
+    FUN = mean,
+    R = N.R, ## need many draws because ci's below require them
+    na.rm = T
+  )
+  ## need to increase number of ci's sometimes, so use try function
+  repeat{
+    ci.try <- try(boot.ci(mean.boot), silent = T)
+    if (class(ci.try) == "try-error") {
+      N.R <- N.R + 10000
+      mean.boot <- two.boot(
+        sample1 = m.data$vote.change[m.data$white == 1],
+        sample2 = m.data$vote.change[m.data$white == 0],
+        FUN = mean,
+        R = N.R, ## need many draws because ci's below require them
+        na.rm = T
+      )
+    }
+    if (class(ci.try) != "try-error") {
+      ci.boot <- boot.ci(mean.boot)
+      break()
+    }
+  }
+
+  outmat[i, "coefficient"] <- out.reg$coefficients["whiteTRUE"]
+  outmat[i, "stdev"] <- summary(out.boot)$stdev.params["whiteTRUE"]
+  outmat[i, "N.treatment"] <- nrow(m.data[m.data$white == T, ])
+  outmat[i, "N.control"] <- nrow(m.data[m.data$white == F, ])
+
+  outmat.diffs[i, "mean.diff"] <- mean.boot$t0
+  outmat.diffs[i, "low.ci"] <- ci.boot$normal[2] ## extracting the normal approximation, rather than regular, for 95% confidence interval
+  outmat.diffs[i, "high.ci"] <- ci.boot$normal[3]
+  outmat.diffs[i, "N"] <- length(mean.boot$data)
+}
+
+## rename matrix for use in printing later
+white.match.black.property <- outmat
+white.match.black.diffs.property <- outmat.diffs
+
+time.elapsed <- proc.time() - ptm ## end time
+cat(paste("total elapsed time:", time.elapsed[3], "\n \n", sep = " "))
+
+
+
+#################################################################
+## create predicted effects for distance and context changes
+##########################################################
+cat("beginning turnout predictions with changing context and distance \n")
+
+## use data created above for whites
+usedata <- white.data
+
+
+## create chunks for estimation
+distances <- seq(from = 10, to = 2000, by = 10)
+areas <- seq(from = 0, to = 1, length.out = length(distances))
+
+## storage bin
+outmat.s <- matrix(ncol = 5, nrow = 0)
+outmat.d <- matrix(ncol = 5, nrow = 0)
+
+# running some statistical analysis. 
+
+out.reg <- zelig(vote2004 ~ log(demo.distance) + log(context_black) + vote2000, data = usedata, model = "ls", cite = F)
+
+## begin simulations across variable values
+# for(i in seq(1:length(distances))){
+for (i in seq(1:length(distances))) {
+  print(i)
+  ptm <- proc.time() ## start time
+
+  use.distance <- distances[i]
+  out.d.1 <- setx(out.reg,
+    vote2000 = 1,
+    demo.distance = use.distance
+  )
+
+  out.d.sims <- sim(out.reg,
+    x = out.d.1
+  )
+
+  use.area <- areas[i]
+  out.s.1 <- setx(out.reg,
+    vote2000 = 1,
+    demo.distance = 100,
+    context_black = use.area
+  )
+
+  out.s.sims <- sim(out.reg,
+    x = out.s.1
+  )
+
+  outstats.d <- summary(out.d.sims)$stats[[1]]
+  outstats.s <- summary(out.s.sims)$stats[[1]]
+
+  outmat.d <- rbind(outmat.d, outstats.d)
+  outmat.s <- rbind(outmat.s, outstats.s)
+
+  print(proc.time() - ptm) ## end time
+}
+
+## store results for graphics and table
+predicted.results.distance.vary.context <- outmat.d
+predicted.results.area.vary.context <- outmat.s
+
+out.reg.predictions <- out.reg
+
+time.elapsed <- proc.time() - ptm ## end time
+cat(paste("total elapsed time:", time.elapsed[3], "\n \n", sep = " "))
+```
+
+```{r vote choice, echo = FALSE}
+## vote_choice.r
+## estimate the quantities for the vote choice section of Enos Chicago AJPS
+## RdE June 2014
+
+## use king's ei method to estimate vote choice by race
+## do it separately by year
+
+## load data, one data set for each Census/redistricting period
+
+# hmm this might be a problem... do I have this data?
+data.2000 <- read.csv("indata_static/data.votechoice.2000.csv")
+data.2010 <- read.csv("indata_static/data.votechoice.2010.csv")
+
+cat("Begin EI estimation \n")
+
+years <- c("2000", "2010")
+## cycle through each data set and estimate the black and white vote for candidates
+for (year in years) {
+  if (year == "2000") {
+    ts <- c("dole_pct", "bush2000_pct") ## dependent variables
+    ns <- c("votes_cast_1996", "votes_cast_2000") ## turnout
+    ei.white <- as.data.frame(data.2000[, "ward_pre"]) ## divide data into black and white
+    
+    # aren't there a lot of differences tho... hmm one of the conclusions might
+    # not hold up. like dole replublicans and bush replublicans might be
+    # different and have different motivations for supporting/not supporting
+    # their candidate
+    ei.black <- as.data.frame(data.2000[, "ward_pre"])
+    use.data <- data.2000
+  }
+  # well there is more data... 
+  
+  if (year == "2010") {
+    ts <- c("obama_sen_primary_pct", "keyes_pct", "bush2004_pct", "obama_pres_primary_pct", "mccain_pct")
+    ns <- c("votes_cast_2004_sen_dem_primary", "votes_cast_2004_senate", "votes_cast_2004_president", "votes_cast_2008_president_dem_primary", "votes_cast_2008_president")
+    ei.white <- as.data.frame(data.2010[, "ward_pre"])
+    ei.black <- as.data.frame(data.2010[, "ward_pre"])
+    use.data <- data.2010
+  }
+  colnames(ei.white) <- "ward_pre"
+  colnames(ei.black) <- "ward_pre"
+
+
+  for (i in 1:length(ts)) {
+    ## use Enos name estimations to approximate number of white and black residents in each precinct
+    
+    # this is a big piece of it for me -- name estimations. should i trust this. 
+    ei.data.king.white <- use.data[, c("white_name", ts[i], ns[i], "ward_pre")]
+    ei.data.king.black <- use.data[, c("black_name", ts[i], ns[i], "ward_pre")]
+
+    ## limit to complete cases
+    ei.data.king.white <- ei.data.king.white[complete.cases(ei.data.king.white), ]
+    ei.data.king.black <- ei.data.king.black[complete.cases(ei.data.king.black), ]
+
+    ## formulas for EI estimation
+    white.formula <- as.formula(paste(ts[i], " ~ white_name", sep = ""))
+    black.formula <- as.formula(paste(ts[i], " ~ black_name", sep = ""))
+
+    ## perform EI using King's method
+    
+    # what is kings method???
+    res.king.white <- ei(
+      formula = white.formula, total = ns[i],
+      data = ei.data.king.white
+    )
+    res.king.black <- ei(
+      formula = black.formula, total = ns[i],
+      data = ei.data.king.black
+    )
+    
+    # wow this is quite complicated. I don't really understand what is going on
+    # here.
+
+    ## extract vote estimations and recombine with wards, name new variable
+    ei.data.king.white$votes <- res.king.white$betab
+    output.white <- ei.data.king.white[, c("ward_pre", "votes")]
+    colnames(output.white) <- c("ward_pre", paste(ts[i], "ei", sep = "_"))
+
+    ei.data.king.black$votes <- res.king.black$betab
+    output.black <- ei.data.king.black[, c("ward_pre", "votes")]
+    colnames(output.black) <- c("ward_pre", paste(ts[i], "ei", sep = "_"))
+
+    ## merge back with existing data for use later
+    ei.white <- merge(ei.white, output.white,
+      by = "ward_pre",
+      all.x = T, all.y = F
+    )
+    ei.black <- merge(ei.black, output.black,
+      by = "ward_pre",
+      all.x = T, all.y = F
+    )
+  }
+  ## name for use below
+  
+  # neat code trick
+  if (year == "2000") {
+    ei.white.2000 <- ei.white
+    ei.black.2000 <- ei.black
+  }
+  if (year == "2010") {
+    ei.white.2010 <- ei.white
+    ei.black.2010 <- ei.black
+  }
+}
+
+time.elapsed <- proc.time() - ptm ## end time
+cat(paste("total elapsed time:", time.elapsed[3], "\n \n", sep = " "))
+
+##########################################################
+##### now use these data to estimate differences in voting between precincts near and far from demolished projects
+#################################################
+cat("Begin estimation of vote differences between treated and control \n")
+
+distance.subset <- 1000 ## SETS THE DISTANCE UNDER WHICH TO ANALYZE THE RELATIONSHIP
+
+## mats for storing results
+outmat.distance <- matrix(ncol = 10, nrow = 0)
+outmat.demolished <- matrix(ncol = 10, nrow = 0)
+
+## variables needed for estimation for white and black subjects, will vary between them
+whitevars <- c("demo.distance", "nondemo.distance", "white_median_income", "white.weight")
+blackvars <- c("demo.distance", "nondemo.distance", "black_median_income", "black.weight")
+
+
+## create formulas for below
+white.treated.form <- "treated ~ white_median_income"
+black.treated.form <- "treated ~ black_median_income"
+
+# WHAT IS GOING ON ABOVE -- is that a regression? 
+
+## again cycle through datasets
+for (year in years) {
+  if (year == 2000) {
+    usedata.black <- merge(data.2000, ei.black.2000, by = "ward_pre", all = F)
+    usedata.white <- merge(data.2000, ei.white.2000, by = "ward_pre", all.x = F, all.y = F)
+    deps <- c("dole_pct_ei", "bush2000_pct_ei")
+  }
+  if (year == 2010) {
+    usedata.black <- merge(data.2010, ei.black.2010, by = "ward_pre", all = F)
+    usedata.white <- merge(data.2010, ei.white.2010, by = "ward_pre", all.x = F, all.y = F)
+    deps <- c("obama_sen_primary_pct_ei", "keyes_pct_ei", "bush2004_pct_ei", "obama_pres_primary_pct_ei", "mccain_pct_ei")
+  }
+
+
+  ## drop O'Hare precincts, this can be left in with no substantive consequence
+  usedata.black <- usedata.black[usedata.black$ward_pre != "41 27", ]
+  usedata.white <- usedata.white[usedata.white$ward_pre != "41 27", ]
+
+  ## DROP WHITE PRECINCTS WITH 0 WHITE INCOME AND SAME FOR BLACK, THESE PRECINCTS DO NOT HAVE THESE GROUPS
+  usedata.black <- usedata.black[usedata.black$black_median_income > 0, ]
+  usedata.white <- usedata.white[usedata.white$white_median_income > 0, ]
+
+
+  ## weights
+  usedata.black$black.weight <- usedata.black$registrants * usedata.black$black_name
+  usedata.white$white.weight <- usedata.white$registrants * usedata.white$white_name
+  ## force mean of weights to 1, this helps with sensible weighting below
+  ## 		usedata.black$black.weight = usedata.black$black.weight/mean(usedata.black$black.weight, na.rm = T)
+  ## 		usedata.white$white.weight = usedata.white$white.weight/mean(usedata.white$white.weight, na.rm = T)
+
+  ## cycle through each dependent variable, in each year and find average vote by racial group
+  for (i in 1:length(deps)) {
+    for (j in c("distance", "demolished")) { ## define treatment by distance and demolished/non-demolished, estimate for each
+      thesevars <- c(whitevars, deps[i])
+      usedata <- usedata.white[, thesevars]
+      usedata <- usedata[complete.cases(usedata), ]
+      if (j == "demolished") {
+        usedata <- usedata[usedata$demo.distance <= distance.subset | usedata$nondemo.distance <= distance.subset, ]
+      }
+      usedata$treated <- ifelse(usedata$demo.distance <= distance.subset, 1, 0)
+
+      ## define subset for use below that does not include precincts near intact projects, do the same below, but exclude demolished
+      m.out <- matchit(as.formula(white.treated.form),
+        data = usedata,
+        method = "nearest",
+        replace = F
+      ) ## can replaced with replace = T to demonstrate robustness
+      m.data <- match.data(m.out)
+      m.data$white.weight <- m.data$white.weight / mean(m.data$white.weight, na.rm = T)
+
+      ## weighted t-test
+      out.t.test <- wtd.t.test(
+        x = m.data[m.data$treated == 1, deps[i]],
+        y = m.data[m.data$treated == 0, deps[i]],
+        weight = m.data$white.weight[m.data$treated == 1],
+        weighty = m.data$white.weight[m.data$treated == 0]
+      )
+
+      out.N <- nrow(m.data[m.data$treated == 1, ])
+      ## put together results for output in matrix
+      outres <- c(deps[i], "white", out.t.test$coefficients, out.t.test$additional, out.N)
+      if (j == "distance") {
+        outmat.distance <- rbind(outmat.distance, outres)
+      }
+      if (j == "demolished") {
+        outmat.demolished <- rbind(outmat.demolished, outres)
+      }
+      ### for black vote
+      thesevars <- c(blackvars, deps[i])
+
+      usedata <- usedata.black[, thesevars]
+      usedata <- usedata[complete.cases(usedata), ]
+      if (j == "demolished") {
+        usedata <- usedata[usedata$demo.distance <= distance.subset | usedata$nondemo.distance <= distance.subset, ]
+      }
+      usedata$treated <- ifelse(usedata$demo.distance <= distance.subset, 1, 0)
+      ## define subset for use below that does not include precincts near intact projects, do the same below, but exclude demolished
+      m.out <- matchit(as.formula(black.treated.form),
+        data = usedata,
+        method = "nearest",
+        replace = F
+      ) ## can replaced with replace = T to demonstrate robustness
+      m.data <- match.data(m.out)
+      m.data$black.weight <- m.data$black.weight / mean(m.data$black.weight, na.rm = T)
+
+
+      out.t.test <- wtd.t.test(
+        x = m.data[m.data$treated == 1, deps[i]],
+        y = m.data[m.data$treated == 0, deps[i]],
+        weight = m.data$black.weight[m.data$treated == 1],
+        weighty = m.data$black.weight[m.data$treated == 0]
+      )
+
+      out.N <- nrow(m.data[m.data$treated == 1, ])
+      ## put together results for output in matrix
+      outres <- c(deps[i], "black", out.t.test$coefficients, out.t.test$additional, out.N)
+      if (j == "distance") {
+        outmat.distance <- rbind(outmat.distance, outres)
+      }
+      if (j == "demolished") {
+        outmat.demolished <- rbind(outmat.demolished, outres)
+      }
+    }
+  }
+}
+
+## save results
+rownames(outmat.distance) <- NULL
+outmat.distance <- as.data.frame(outmat.distance)
+colnames(outmat.distance) <- c("election", "group", "t.value", "df", "p", "diff", "x.mean", "y.mean", "sd", "treated.N")
+outmat.distance$t.value <- as.numeric(levels(outmat.distance[, "t.value"]))[outmat.distance[, "t.value"]]
+outmat.distance$df <- as.numeric(levels(outmat.distance[, "df"]))[outmat.distance[, "df"]]
+outmat.distance$p <- as.numeric(levels(outmat.distance[, "p"]))[outmat.distance[, "p"]]
+outmat.distance$diff <- as.numeric(levels(outmat.distance[, "diff"]))[outmat.distance[, "diff"]]
+outmat.distance$x.mean <- as.numeric(levels(outmat.distance[, "x.mean"]))[outmat.distance[, "x.mean"]]
+outmat.distance$y.mean <- as.numeric(levels(outmat.distance[, "y.mean"]))[outmat.distance[, "y.mean"]]
+outmat.distance$sd <- as.numeric(levels(outmat.distance[, "sd"]))[outmat.distance[, "sd"]]
+outmat.distance$treated.N <- as.numeric(levels(outmat.distance[, "treated.N"]))[outmat.distance[, "treated.N"]]
+
+rownames(outmat.demolished) <- NULL
+outmat.demolished <- as.data.frame(outmat.demolished)
+colnames(outmat.demolished) <- c("election", "group", "t.value", "df", "p", "diff", "x.mean", "y.mean", "sd", "treated.N")
+outmat.demolished$t.value <- as.numeric(levels(outmat.demolished[, "t.value"]))[outmat.demolished[, "t.value"]]
+outmat.demolished$df <- as.numeric(levels(outmat.demolished[, "df"]))[outmat.demolished[, "df"]]
+outmat.demolished$p <- as.numeric(levels(outmat.demolished[, "p"]))[outmat.demolished[, "p"]]
+outmat.demolished$diff <- as.numeric(levels(outmat.demolished[, "diff"]))[outmat.demolished[, "diff"]]
+outmat.demolished$x.mean <- as.numeric(levels(outmat.demolished[, "x.mean"]))[outmat.demolished[, "x.mean"]]
+outmat.demolished$y.mean <- as.numeric(levels(outmat.demolished[, "y.mean"]))[outmat.demolished[, "y.mean"]]
+outmat.demolished$sd <- as.numeric(levels(outmat.demolished[, "sd"]))[outmat.demolished[, "sd"]]
+outmat.demolished$treated.N <- as.numeric(levels(outmat.demolished[, "treated.N"]))[outmat.demolished[, "treated.N"]]
+
+## rename for plotting
+distance.vote.differences <- outmat.distance
+demolished.vote.differences <- outmat.demolished
+
+
+time.elapsed <- proc.time() - ptm ## end time
+cat(paste("total elapsed time:", time.elapsed[3], "\n \n", sep = " "))
+```
+
+```{r output_create, echo = FALSE}
+## output_create.r
+### create output for Enos 'What the Demolition of Public Housing Teaches Us About the Impact of Racial Threat on Political Behavior'
+### RdE June 2014
+
+
+cat("creating output \n")
+
+## master graphic parameters for graphics
+
+# this is super smart -- I should start doing this for my projects. 
+ylims <- c(-.35, .1)
+ylims.2 <- c(-.45, .1)
+xlims <- c(.5, 11)
+dists <- seq(from = 1000, to = 100, by = -100) ### DELETE THIS LATER
+xs <- seq(1:length(dists))
+ys <- seq(from = -.35, to = .1, by = .05)
+ys.lab <- c("-0.35", "-0.30", "-0.25", "-0.20", "-0.15", "-0.10", "-0.05", "0.00", "0.05", "0.10")
+ys.2 <- seq(from = -.45, to = .1, by = .05)
+ys.lab.2 <- c("-0.45", "-0.40", "-0.35", "-0.30", "-0.25", "-0.20", "-0.15", "-0.10", "-0.05", "0.00", "0.05", "0.10")
+
+offsets <- .15
+text.offsets <- .025
+cex.axis <- .9
+cex.N <- .7
+top.text.adj <- c(1.3, 1.3) ## offsets on labels to reduce crowding
+bottom.text.adj <- c(-.15, -.85)
+point.size <- 2
+line.offset <- .0175
+
+###########################################
+### basic diff in diff graphs################
+### Figure 1 and Appendix Figure A1
+###################################
+
+## load data
+wtreat <- white.treat.effect.mean.boot
+wtreat.lower <- white.treat.effect.conf.boot.lower
+wtreat.upper <- white.treat.effect.conf.boot.upper
+Nwtreat <- white.treat.N
+btreat <- black.treat.effect.mean.boot
+btreat.lower <- black.treat.effect.conf.boot.lower
+btreat.upper <- black.treat.effect.conf.boot.upper
+Nbtreat <- black.treat.N
+## letters for marking graphs, one is not used
+use.letters <- c("a", "b", "c", "d", "e", "f", "skip", "g", "h")
+
+## cycle through each line of data, each of which are groups defined by diferent namepcts
+for (i in 1:nrow(wtreat)) { ## turning into matrices helps below with segment function
+  use.wtreat <- as.matrix(wtreat[i, ])
+  use.wlower <- as.matrix(wtreat.lower[i, ])
+  use.wupper <- as.matrix(wtreat.upper[i, ])
+  use.Nwtreat <- as.matrix(Nwtreat[i, ])
+
+  use.btreat <- as.matrix(btreat[i, ])
+  use.blower <- as.matrix(btreat.lower[i, ])
+  use.bupper <- as.matrix(btreat.upper[i, ])
+  use.Nbtreat <- as.matrix(Nbtreat[i, ])
+
+
+  ## name graphs
+  if (i == 7) {
+    pdf("output/Figure_1.pdf")
+  }
+  else {
+    pdf(paste("appendix_output/Figure_A1", use.letters[i], ".pdf", sep = ""))
+  }
+  par(las = 1)
+  par(mar = c(5.1, 4.1, .5, .5))
+  plot(xs, use.wtreat,
+    ylim = ylims,
+    xlim = xlims,
+    type = "n",
+    ylab = "Treatment Effect",
+    xlab = "Treated Group Distance from Projects",
+    xaxt = "n",
+    yaxt = "n"
+  )
+  abline(h = 0, lty = 2)
+
+  ## draw lines first because I want them to be covered by points create spaces
+  ## in lines using the offset (this allows the N to be displayed with the
+  ## text() function) black lines are offset to the left, white lines to the
+  ## right
+  segments(
+    x0 = xs[1:2] + offsets, x1 = xs[1:2] + offsets, ## only do it for low N blacks because otherwise lines look funny
+    y0 = use.btreat[, 1:2], y1 = use.blower[, 1:2]
+  )
+  segments(
+    x0 = xs[1:2] + offsets, x1 = xs[1:2] + offsets,
+    y0 = use.btreat[, 1:2] + line.offset, y1 = use.bupper[, 1:2]
+  )
+  ## now the others
+  segments(
+    x0 = xs[3:10] + offsets, x1 = xs[3:10] + offsets,
+    y0 = use.blower[, 3:10], y1 = use.bupper[, 3:10]
+  )
+
+
+  segments(
+    x0 = xs - offsets, x1 = xs - offsets, ## bottomlines
+    y0 = use.wtreat - line.offset, y1 = use.wlower
+  )
+  segments(
+    x0 = xs - offsets, x1 = xs - offsets, ## toplines
+    y0 = use.wtreat, y1 = use.wupper
+  )
+
+
+  ## points and N descriptions
+  points(xs - offsets, use.wtreat,
+    cex = point.size,
+    pch = 21,
+    bg = "white",
+    col = "black"
+  )
+  text(xs - offsets, use.wtreat,
+    paste("(", use.Nwtreat, ")", sep = ""),
+    cex = cex.N,
+    # adj = top.text.adj
+    pos = 1
+  )
+
+  points(xs + offsets, use.btreat,
+    pch = 16,
+    cex = point.size
+  )
+  text(xs + offsets, use.btreat,
+    paste("(", use.Nbtreat, ")", sep = ""),
+    cex = cex.N,
+    # adj = bottom.text.adj
+    pos = 3
+  )
+
+  axis(
+    side = 1,
+    at = xs,
+    label = seq(100, 1000, 100),
+    cex.axis = cex.axis
+  )
+  axis(
+    side = 2,
+    at = ys,
+    label = ys.lab,
+    cex.axis = cex.axis
+  )
+
+  dev.off()
+}
+
+
+###########################################
+### matched groups################
+### Figures 2 and 3 and Appendix Figure A3-A12
+###################################
+
+## this cycles thorugh a bunch of dataframes, each of which is needed for a different graph
+for (figure in c("white.basic.main", "white.demo.main", "white.demo.property", "white.demo.localrace", "blackmain", "blackcensus")) {
+  if (figure == "white.basic.main") {
+    ## this group is different than the rest because the second set is not actually a diff in diff, but calling it "diffs" for consistency
+    treat <- white.match.basic
+    treat.2 <- white.match.basic.property
+    fig.nums <- c("A3", "A4") ## figure names
+    pchs <- c(17, 17) ## point types
+  }
+  if (figure == "white.demo.main") {
+    treat <- white.match.nondemolished
+    diffs <- white.match.nondemolished.diffs
+    fig.nums <- c("2", "A5")
+    pchs <- c(17, 22)
+  }
+  if (figure == "white.demo.property") {
+    treat <- white.match.nondemolished.property
+    diffs <- white.match.nondemolished.diffs.property
+    fig.nums <- c("A6", "A7")
+    pchs <- c(17, 22)
+  }
+  if (figure == "white.demo.localrace") {
+    treat <- white.match.nondemolished.localrace
+    diffs <- white.match.nondemolished.diffs.localrace
+    fig.nums <- c("A8", "A9")
+    pchs <- c(17, 22)
+  }
+  if (figure == "blackmain") {
+    treat <- white.match.black.property
+    diffs <- white.match.black.diffs.property
+    fig.nums <- c("3", "A12")
+    pchs <- c(17, 21)
+  }
+  if (figure == "blackcensus") {
+    treat <- white.match.black
+    diffs <- white.match.black.diffs
+    fig.nums <- c("A10", "A11")
+    pchs <- c(17, 21)
+  }
+
+
+  ## define axis for different graphs
+  if (figure %in% c("white.basic.main", "white.demo.main", "blackmain")) {
+    use.ylims <- ylims
+    use.ys.lab <- ys.lab
+    use.ys <- ys
+  }
+  else {
+    use.ylims <- ylims.2
+    use.ys.lab <- ys.lab.2
+    use.ys <- ys.2
+  }
+
+  ## go through pairs for each pair of dataframe
+  for (i in 1:2) {
+    if (i == 1) {
+      use.treat <- treat[, "coefficient"]
+      clower <- use.treat - (1.96 * treat[, "stdev"])
+      cupper <- use.treat + (1.96 * treat[, "stdev"])
+      use.N.treat <- treat[, "N.treatment"] + treat[, "N.control"]
+    }
+    if (i == 2 & figure != "white.basic.main") {
+      use.treat <- diffs[, "mean.diff"]
+      clower <- diffs[, "low.ci"]
+      cupper <- diffs[, "high.ci"]
+      use.N.treat <- diffs[, "N"]
+    }
+    if (i == 2 & figure == "white.basic.main") { ## white.basic.main figures have slightly different structure
+      use.treat <- treat.2[, "coefficient"]
+      clower <- use.treat - (1.96 * treat.2[, "stdev"])
+      cupper <- use.treat + (1.96 * treat.2[, "stdev"])
+      use.N.treat <- treat.2[, "N.treatment"] + treat.2[, "N.control"]
+    }
+    if (figure %in% c("white.demo.main", "blackmain") & i == 1) {
+      pdf(paste("output/Figure_", fig.nums[i], ".pdf", sep = ""))
+    }
+    else {
+      pdf(paste("appendix_output/Figure_", fig.nums[i], ".pdf", sep = ""))
+    }
+    par(las = 1)
+    par(mar = c(5.1, 4.1, .5, .5))
+    plot(xs, use.treat,
+      ylim = use.ylims,
+      xlim = xlims,
+      type = "n",
+      ylab = "Treatment Effect",
+      xlab = "Treated Group Distance from Projects",
+      xaxt = "n",
+      yaxt = "n"
+    )
+    abline(h = 0, lty = 2)
+
+    segments(
+      x0 = xs, x1 = xs,
+      y0 = use.treat + line.offset, y1 = cupper
+    )
+    segments(
+      x0 = xs, x1 = xs,
+      y0 = use.treat, y1 = clower
+    )
+
+    ### Treatment Effects
+    points(xs, use.treat,
+      pch = pchs[i],
+      cex = point.size,
+      bg = "white",
+      col = "black"
+    )
+    text(xs, use.treat,
+      paste("(", use.N.treat, ")", sep = ""),
+      cex = cex.N,
+      pos = 3
+    )
+    axis(
+      side = 1,
+      at = xs,
+      label = seq(100, 1000, 100),
+      cex.axis = cex.axis
+    )
+    axis(
+      side = 2,
+      at = use.ys,
+      label = use.ys.lab,
+      cex.axis = cex.axis
+    )
+
+    dev.off()
+  }
+}
+
+
+###########################################
+
+## regression of turnout on distance and population size Figure 4
+
+###################################
+## write out regression to latex table
+out.model <- apsrtable(out.reg.predictions,
+  coef.names = c("Intercept", "log(distance)", "log(percent of local black population)", "2000 turnout"),
+  digits = 3
+)
+writeLines(
+  out.model,
+  "output/Table_1.tex"
+)
+
+
+###########################################
+
+### predicted effects graphs Figure 4
+
+###################################
+
+distdat <- predicted.results.distance.vary.context
+areadat <- predicted.results.area.vary.context
+
+## new ylims for these graphs
+ylims.predict <- c(.6, .75)
+
+datas <- list(distdat, areadat) ## put data in a list to cycle through
+## parameters to be used in graphs below
+xs <- list(seq(from = 10, to = 2000, by = 10), seq(from = 45000, to = 1004000, by = 4800) / 1000)
+use.letters <- c("a", "b")
+xlabs <- c("Distance from Project", "Percent of Local Black Population in Demolished Project")
+ylabs <- c(expression(Pr(vote[2004])), "")
+vlines <- list(seq(from = 0, to = 2000, by = 200), seq(from = 0, to = 1000, by = 100))
+axis.labs <- list(
+  as.character(seq(from = 0, to = 2000, by = 200)),
+  as.character(c("0", "10%", "20%", "30%", "40%", "50%", "60%", "70%", "80%", "90%", "100%"))
+)
+
+for (i in 1:2) {
+  colnames(datas[[i]]) <- c("mean", "sd", "50%", "2.5%", "97.5%") ## saving renames columns, so name back
+
+  pdf(paste("output/Figure_4", use.letters[i], ".pdf", sep = ""))
+  par(las = 1)
+  par(mar = c(5.1, 4.1, .5, .5))
+  plot(xs[[i]], datas[[i]][, "mean"],
+    type = "l",
+    xlab = xlabs[i],
+    ylab = ylabs[i],
+    ylim = ylims.predict,
+    xaxt = "n",
+    cex.axis = cex.axis,
+    lwd = 4
+  )
+  ## put horizontal and vertical lines on plots
+  abline(
+    h = seq(from = min(ylims.predict), to = max(ylims.predict), by = .025),
+    lty = 2,
+    col = "gray",
+    lwd = 1
+  )
+  abline(
+    v = vlines[[i]],
+    lty = 2,
+    col = "gray",
+    lwd = 1
+  )
+  lines(xs[[i]], datas[[i]][, "2.5%"],
+    lty = 3,
+    lwd = 2.5
+  )
+  lines(xs[[i]], datas[[i]][, "97.5%"],
+    lty = 3,
+    lwd = 2.5
+  )
+  axis(
+    side = 1,
+    at = vlines[[i]],
+    labels = axis.labs[[i]],
+    cex.axis = cex.axis
+  )
+
+  dev.off()
+}
+
+
+
+###########################################
+
+## vote choice graphs Figures 5 and 6
+
+###################################
+pres.elections <- c("dole_pct_ei", "bush2000_pct_ei", "bush2004_pct_ei", "mccain_pct_ei")
+obama.elections <- c("obama_sen_primary_pct_ei", "keyes_pct_ei", "obama_pres_primary_pct_ei")
+
+dists <- distance.vote.differences
+demos <- demolished.vote.differences
+
+graphs <- c("5a", "5b", "6")
+
+for (i in graphs) {
+  if (i == "5a") {
+    dat <- dists
+  }
+  else {
+    dat <- demos
+  }
+
+
+  if (i %in% c("5a", "5b")) {
+    xlims <- c(.75, 4.25)
+    ylims <- c(-.1, .2)
+  }
+  else {
+    xlims <- c(.75, 3.25)
+    ylims <- c(-.1, .25)
+  }
+
+  ## recode Keyes to Obama general for presentation purposes
+  dat[dat$election == "keyes_pct_ei", "x.mean"] <- 1 - dat[dat$election == "keyes_pct_ei", "x.mean"]
+  dat[dat$election == "keyes_pct_ei", "y.mean"] <- 1 - dat[dat$election == "keyes_pct_ei", "y.mean"]
+  dat[dat$election == "keyes_pct_ei", "diff"] <- dat[dat$election == "keyes_pct_ei", "y.mean"] - dat[dat$election == "keyes_pct_ei", "x.mean"]
+
+  pdf(paste("output/Figure_", i, ".pdf", sep = ""),
+    width = 7, height = 8
+  )
+  par(las = 1)
+  par(mar = c(5.1, 4.1, .5, 1.5))
+  plot(seq(1:4),
+    rep(1, 4),
+    ylim = c(-.1, .2),
+    xlim = xlims,
+    type = "n",
+    xaxt = "n",
+    yaxt = "n",
+    xlab = "Election",
+    ylab = ifelse(i == "5b", "", "Treatment Effect")
+  )
+  abline(h = 0, lty = 2)
+
+  if (i %in% c("5a", "5b")) {
+    segments(
+      x0 = seq(1:4) - offsets,
+      x1 = seq(1:4) - offsets,
+      y0 = dat[dat$group == "white" & dat$election %in% pres.elections, "diff"] - (1.96 * dat[dat$group == "white" & dat$election %in% pres.elections, "sd"]),
+      y1 = dat[dat$group == "white" & dat$election %in% pres.elections, "diff"] + (1.96 * dat[dat$group == "white" & dat$election %in% pres.elections, "sd"])
+    )
+    points(seq(1:4) - offsets,
+      dat[dat$group == "white" & dat$election %in% pres.elections, "diff"],
+      pch = 21,
+      bg = "white",
+      col = "black",
+      cex = 2
+    )
+    segments(
+      x0 = seq(1:4) + offsets,
+      x1 = seq(1:4) + offsets,
+      y0 = dat[dat$group == "black" & dat$election %in% pres.elections, "diff"] - (1.96 * dat[dat$group == "black" & dat$election %in% pres.elections, "sd"]),
+      y1 = dat[dat$group == "black" & dat$election %in% pres.elections, "diff"] + (1.96 * dat[dat$group == "black" & dat$election %in% pres.elections, "sd"])
+    )
+    points(seq(1:4) + offsets,
+      dat[dat$group == "black" & dat$election %in% pres.elections, "diff"],
+      pch = 16,
+      cex = 2
+    )
+    axis(
+      side = 1, at = seq(1:4),
+      c("1996", "2000", "2004", "2008"),
+      tick = F,
+      cex.axis = cex.axis
+    )
+  }
+  else {
+    segments(
+      x0 = seq(1:3) - offsets,
+      x1 = seq(1:3) - offsets,
+      y0 = dat[dat$group == "white" & dat$election %in% obama.elections, "diff"] - (1.96 * dat[dat$group == "white" & dat$election %in% obama.elections, "sd"]),
+      y1 = dat[dat$group == "white" & dat$election %in% obama.elections, "diff"] + (1.96 * dat[dat$group == "white" & dat$election %in% obama.elections, "sd"])
+    )
+    points(seq(1:3) - offsets,
+      dat[dat$group == "white" & dat$election %in% obama.elections, "diff"],
+      pch = 21,
+      bg = "white",
+      col = "black",
+      cex = 2
+    )
+    segments(
+      x0 = seq(1:3) + offsets,
+      x1 = seq(1:3) + offsets,
+      y0 = dat[dat$group == "black" & dat$election %in% obama.elections, "diff"] - (1.96 * dat[dat$group == "black" & dat$election %in% obama.elections, "sd"]),
+      y1 = dat[dat$group == "black" & dat$election %in% obama.elections, "diff"] + (1.96 * dat[dat$group == "black" & dat$election %in% obama.elections, "sd"])
+    )
+    points(seq(1:3) + offsets,
+      dat[dat$group == "black" & dat$election %in% obama.elections, "diff"],
+      pch = 16,
+      cex = 2
+    )
+    axis(
+      side = 1, at = seq(1:3),
+      c("2004 \n Senate Primary", "2004 \n Senate General", "2008 \n President Primary"),
+      tick = F,
+      cex.axis = cex.axis
+    )
+  }
+  axis(
+    side = 2,
+    at = seq(from = -.1, to = .3, by = .05),
+    label = c("-0.10", "-0.05", "0.00", "0.05", "0.10", "0.15", "0.20", "0.25", "0.30"),
+    cex.axis = cex.axis
+  )
+  dev.off()
+  
+}
+
+
+###########################################
+
+### parallel trends graph Appendix Figures A2
+
+###################################
+
+groups <- parallel.trends
+
+
+
+## plot elections votes
+pdf("appendix_output/Figure_A2.pdf")
+par(las = 1)
+par(mar = c(5.1, 4.1, .5, .5))
+plot(1,
+  .5,
+  ylim = c(.5, .9),
+  xlim = c(1, 5),
+  type = "n",
+  xaxt = "n",
+  ylab = "Percent Voter Turnout",
+  xlab = "Year"
+)
+text(seq(1:5), groups[, "white.control"], expression("W"["C"]), cex = 1.5)
+text(seq(1:5), groups[, "white.treatment"], expression("W"["T"]), cex = 1.5)
+text(seq(1:5), groups[, "black.control"], expression("B"["C"]), cex = 1.5)
+text(seq(1:5), groups[, "black.treatment"], expression("B"["T"]), cex = 1.5)
+
+lines(seq(1:5), groups[, "white.control"], lty = 2)
+lines(seq(1:5), groups[, "white.treatment"], lty = 2)
+lines(seq(1:5), groups[, "black.control"], lty = 2)
+lines(seq(1:5), groups[, "black.treatment"], lty = 2)
+
+axis(side = 1, at = seq(1:5), labels = c("1996", "1998", "2000", "2002", "2004"))
+axis(side = 2, at = seq(from = .5, to = .9, by = .05), labels = seq(from = .5, to = .9, by = .05))
+
+dev.off()
+
+
+
+
+
+##############################################################
+time.elapsed <- proc.time() - ptm ## end time
+cat(paste("total elapsed time:", time.elapsed[3], "\n \n", sep = " "))
+
+cat("Done! \n Figures should be in the directories 'output' and 'appendix_output'.") 
+
+```
