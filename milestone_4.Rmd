@@ -1,0 +1,39 @@
+---
+title: 'Milestone #4'
+author: "Niel Schrage"
+date: "2/26/2020"
+output: bookdown::pdf_document2
+bibliography: [basicbib.bib]
+biblio-style: "apalike"
+link-citations: false
+toc: false
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# loading libraries
+
+library(tidyverse)
+library(bookdown)
+library(tinytex)
+library(gt)
+library(gtsummary)
+library(stargazer)
+library(knitr)
+
+
+pdf_document2()
+
+
+```
+
+This is my final replication project.^[I'm going to do poorly on it]
+
+How does the context in which a person lives affect his or her political behavior? [@paper]  
+
+test^[This is an example footnote]
+
+[@data]
+    
