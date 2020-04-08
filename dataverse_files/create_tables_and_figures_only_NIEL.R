@@ -35,13 +35,13 @@ line.offset = .0175
 
 ##load data
 wtreat = read.csv('dataverse_files/white.treat.effect.mean.boot.csv') 
-wtreat.lower = read.csv('indata_static/white.treat.effect.conf.boot.lower.csv') 
-wtreat.upper = read.csv('indata_static/white.treat.effect.conf.boot.upper.csv') 
-Nwtreat = read.csv('indata_static/white.treat.N.csv')
-btreat = read.csv('indata_static/black.treat.effect.mean.boot.csv') 
-btreat.lower = read.csv('indata_static/black.treat.effect.conf.boot.lower.csv') 
-btreat.upper = read.csv('indata_static/black.treat.effect.conf.boot.upper.csv') 
-Nbtreat = read.csv('indata_static/black.treat.N.csv')
+wtreat.lower = read.csv('dataverse_files/white.treat.effect.conf.boot.lower.csv') 
+wtreat.upper = read.csv('dataverse_files/white.treat.effect.conf.boot.upper.csv') 
+Nwtreat = read.csv('dataverse_files/white.treat.N.csv')
+btreat = read.csv('dataverse_files/black.treat.effect.mean.boot.csv') 
+btreat.lower = read.csv('dataverse_files/black.treat.effect.conf.boot.lower.csv') 
+btreat.upper = read.csv('dataverse_files/black.treat.effect.conf.boot.upper.csv') 
+Nbtreat = read.csv('dataverse_files/black.treat.N.csv')
 ##letters for marking graphs, one is not used
 use.letters = c('a','b','c','d','e','f','skip','g','h')
 
@@ -60,10 +60,10 @@ for(i in 1:nrow(wtreat)){ ##turning into matrices helps below with segment funct
 
 ##name graphs
 	if(i == 7){
-		pdf('output/Figure_1.pdf')
+		pdf('Figure_1.pdf')
 		}
 	else{
-		pdf(paste('appendix_output/Figure_A1',use.letters[i],'.pdf',sep=''))
+		pdf(paste('Figure_A1',use.letters[i],'.pdf',sep=''))
 		}			
 	par(las = 1)
 	par(mar = c(5.1, 4.1, .5, .5))
@@ -141,38 +141,38 @@ for(i in 1:nrow(wtreat)){ ##turning into matrices helps below with segment funct
 for(figure in c('white.basic.main','white.demo.main','white.demo.property','white.demo.localrace','blackmain','blackcensus')){
 	if(figure == 'white.basic.main'){
 		##this group is different than the rest because the second set is not actually a diff in diff, but calling it "diffs" for consistency
-		treat = read.csv('indata_static/white.match.basic.csv')
-		treat.2 = read.csv('indata_static/white.match.basic.property.csv')
+		treat = read.csv('dataverse_files/white.match.basic.csv')
+		treat.2 = read.csv('dataverse_files/white.match.basic.property.csv')
 		fig.nums = c('A3','A4') ##figure names
 		pchs = c(17,17) ##point types
 		}
 	if(figure == 'white.demo.main'){
-		treat = read.csv('indata_static/white.match.nondemolished.csv')
-		diffs = read.csv('indata_static/white.match.nondemolished.diffs.csv')
+		treat = read.csv('dataverse_files/white.match.nondemolished.csv')
+		diffs = read.csv('dataverse_files/white.match.nondemolished.diffs.csv')
 		fig.nums = c('2','A5')
 		pchs = c(17,22)
 		}
 	if(figure == 'white.demo.property'){
-		treat = read.csv('indata_static/white.match.nondemolished.property.csv')
-		diffs = read.csv('indata_static/white.match.nondemolished.diffs.property.csv')
+		treat = read.csv('dataverse_files/white.match.nondemolished.property.csv')
+		diffs = read.csv('dataverse_files/white.match.nondemolished.diffs.property.csv')
 		fig.nums = c('A6','A7')	
 		pchs = c(17,22)
 		}	
 	if(figure == 'white.demo.localrace'){
-		treat = read.csv('indata_static/white.match.nondemolished.localrace.csv')
-		diffs = read.csv('indata_static/white.match.nondemolished.diffs.localrace.csv')
+		treat = read.csv('dataverse_files/white.match.nondemolished.localrace.csv')
+		diffs = read.csv('dataverse_files/white.match.nondemolished.diffs.localrace.csv')
 		fig.nums = c('A8','A9')			
 		pchs = c(17,22)
 		}
 	if(figure == 'blackmain'){
-		treat = read.csv('indata_static/white.match.black.property.csv')
-		diffs = read.csv('indata_static/white.match.black.diffs.property.csv')
+		treat = read.csv('dataverse_files/white.match.black.property.csv')
+		diffs = read.csv('dataverse_files/white.match.black.diffs.property.csv')
 		fig.nums = c('3','A12')
 		pchs = c(17,21)			
 		}
 	if(figure == 'blackcensus'){
-		treat = read.csv('indata_static/white.match.black.csv')
-		diffs = read.csv('indata_static/white.match.black.diffs.csv')
+		treat = read.csv('dataverse_files/white.match.black.csv')
+		diffs = read.csv('dataverse_files/white.match.black.diffs.csv')
 		fig.nums = c('A10','A11')
 		pchs = c(17,21)	
 		}
@@ -211,10 +211,10 @@ for(figure in c('white.basic.main','white.demo.main','white.demo.property','whit
 			use.N.treat = treat.2$N.treatment + treat.2$N.control
 			}
 		if(figure %in% c('white.demo.main','blackmain') & i ==1){
-				pdf(paste('output/Figure_',fig.nums[i],'.pdf',sep=''))
+				pdf(paste('Figure_',fig.nums[i],'.pdf',sep=''))
 				}
 		else{	
-			pdf(paste('appendix_output/Figure_',fig.nums[i],'.pdf',sep=''))
+			pdf(paste('Figure_',fig.nums[i],'.pdf',sep=''))
 			}
 			par(las = 1)
 			par(mar = c(5.1, 4.1, .5, .5))
@@ -265,13 +265,13 @@ for(figure in c('white.basic.main','white.demo.main','white.demo.property','whit
 ###Figure 4
 ###################################
 ##write out regression to latex table
-load('indata_static/out.reg.predictions.rda') ##load saved model
+load('dataverse_files/out.reg.predictions.rda') ##load saved model
 out.model = apsrtable(out.reg.predictions,
 	coef.names = c( 'Intercept','log(distance)','log(percent of local black population)','2000 turnout'),
 	digits = 3
 	)
 writeLines(out.model,
-	'output/Table_1.tex')
+	'Table_1.tex')
 	
 
 ###########################################
@@ -279,8 +279,8 @@ writeLines(out.model,
 ###Figure 4
 ###################################
 
-distdat =  read.csv('indata_static/predicted.results.distance.vary.context.csv')
-areadat = read.csv('indata_static/predicted.results.area.vary.context.csv')
+distdat =  read.csv('dataverse_files/predicted.results.distance.vary.context.csv')
+areadat = read.csv('dataverse_files/predicted.results.area.vary.context.csv')
 
 ##new ylims for these graphs
 ylims.predict = c(.6,.75)
@@ -298,7 +298,7 @@ axis.labs = list(as.character(seq(from = 0, to = 2000, by = 200)),
 for(i in 1:2){
 	colnames(datas[[i]]) = c("mean","sd","50%","2.5%","97.5%") ##saving renames columns, so name back
 
-	pdf(paste('output/Figure_4',use.letters[i],'.pdf',sep=''))
+	pdf(paste('Figure_4',use.letters[i],'.pdf',sep=''))
 		par(las = 1)
 		par(mar = c(5.1, 4.1, .5, .5))
 		plot(xs[[i]],datas[[i]][,'mean'],
@@ -342,8 +342,8 @@ for(i in 1:2){
 pres.elections = c('dole_pct_ei','bush2000_pct_ei','bush2004_pct_ei','mccain_pct_ei')
 obama.elections = c('obama_sen_primary_pct_ei','keyes_pct_ei','obama_pres_primary_pct_ei')
 
-dists = read.csv('indata_static/distance.vote.differences.csv')
-demos = read.csv('indata_static/demolished.vote.differences.csv')
+dists = read.csv('dataverse_files/distance.vote.differences.csv')
+demos = read.csv('dataverse_files/demolished.vote.differences.csv')
 
 
 graphs = c('5a','5b','6')
@@ -367,7 +367,7 @@ for(i in graphs){
 	dat[dat$election == 'keyes_pct_ei','y.mean'] = 1 - dat[dat$election == 'keyes_pct_ei','y.mean']
 	dat[dat$election == 'keyes_pct_ei','diff'] =dat[dat$election == 'keyes_pct_ei','y.mean'] - dat[dat$election == 'keyes_pct_ei','x.mean']
 	
-		pdf(paste('output/Figure_',i,'.pdf',sep=''),
+		pdf(paste('Figure_',i,'.pdf',sep=''),
 		width = 7, height = 8)
 		par(las = 1)
 		par(mar = c(5.1, 4.1, .5, 1.5))
@@ -459,11 +459,11 @@ for(i in graphs){
 ###Appendix Figures A2
 ###################################
 
-groups = read.csv('indata_static/par.trends.csv')
+groups = read.csv('dataverse_files/par.trends.csv')
 
 
 ###plot elections votes
-	pdf('appendix_output/Figure_A2.pdf')
+	pdf('Figure_A2.pdf')
 		par(las = 1)
 		par(mar = c(5.1, 4.1, .5, .5))
 		plot(1,

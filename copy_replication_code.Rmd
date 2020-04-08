@@ -38,10 +38,21 @@ library(ei)
 library(MatchIt)
 # package for producing simple weighted statistics
 library(weights)
+
+library(Hmisc)
+
+# I THINK YOU NEED TO ADD THIS LINE OF CODE AS WELL
+
+library(Hmisc)
+library(latticeExtra)
+
+
 # simple bootstrapping -- didn't know this existed.
 library(simpleboot)
 # helpful statistics package, especially for modeling
 library(Zelig)
+library()
+
 # package that helps format latex objects side by side 
 library(apsrtable)
 
