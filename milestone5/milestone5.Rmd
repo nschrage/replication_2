@@ -1,0 +1,69 @@
+---
+title: 'Milestone #5'
+author: "Niel Schrage"
+date: "4/8/2020"
+output: bookdown::pdf_document2
+bibliography:  
+biblio-style: "apalike"
+link-citations: false
+toc: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# loading libraries
+
+library(tidyverse)
+library(bookdown)
+library(tinytex)
+library(gt)
+library(gtsummary)
+library(stargazer)
+library(knitr)
+
+
+pdf_document2()
+
+```
+
+# Introduction
+
+* A footnote with your repo url and some verbiage about “All analysis for this paper is available . . .” 
+
+**is this referring to my analysis?** 
+
+All analysis for this paper is available in my github repository.^[https://github.com/nschrage/replication_2]
+
+# Overview
+
+* A 300 – 500 word overview of your replication paper. What analysis did they run? What did they conclude?
+
+**this is really where I should start. this is super doable and I have no excuse not to have done this.**
+
+* All data from your paper must be processed and available in your repo. Submit a PDF via Canvas with the following components, all of which must be present in future submissions:
+
+**what does it mean for data to be processed? **
+
+
+
+* A beautiful graphic which uses this data. (May be similar to or different from a graphic in the original paper.) Use King et al (2000) for inspiration. This is the portion of the submission which will be graded most harshly. Make sure that you include a thorough caption.
+
+**how to include a caption**
+
+
+
+
+
+# Appendix
+
+* An Appendix which include a replication of at least one of the tables from your paper. (It can be a simple summary table.) Also, take a screen shot of the original table and include that image in your Appendix. We want to see how closely your results match the original paper’s.
+
+**how to include a screenshot in the pdf?**
+
+# Bibliography
+
+* A bibliography with at least five references, one of which will be the article you are replicating.
+
+**what should my other sources be? I have no idea??**
+**also need to be sure to 
