@@ -29,21 +29,35 @@ pdf_document2()
 
 # Introduction
 
+This project is my attempt at replicating a published paper by a respected academic. Is the final for [Gov 1006](https://www.davidkane.info/files/gov_1006_spring_2020.html), a class that has taught me a seemingly endless amount about data science, R, and life's most pressing questions. All analysis for this paper is available in my repository.^[https://github.com/nschrage/replication_2] The paper I have selected is by [Ryan D. Enos](http://ryandenos.com/) entitled ["What the Demolition of Public Housing Teaches Us about the Impact of Racial Threat on Political Behavior."](https://onlinelibrary.wiley.com/doi/abs/10.1111/ajps.12156) Thank you to Professor Enos for providing easily accessible [replication data](http://dvn.iq.harvard.edu/dvn/dv/ajps) through the [Harvard Dataverse](https://dataverse.harvard.edu/).
+
+
+
+
+
 * A footnote with your repo url and some verbiage about “All analysis for this paper is available . . .” 
 
 **is this referring to my analysis?** 
 
-All analysis for this paper is available in my github repository.^[https://github.com/nschrage/replication_2]
+
 
 # Overview
 
-* A 300 – 500 word overview of your replication paper. What analysis did they run? What did they conclude?
+* A 300 – 500 word overview of your replication paper. What was the question they were trying to answer? What motivated the question? What data did they use? How was the data collected? What analysis did they run? What did they conclude? Are their conclusions robust? 
 
 **this is really where I should start. this is super doable and I have no excuse not to have done this.**
 
 * All data from your paper must be processed and available in your repo. Submit a PDF via Canvas with the following components, all of which must be present in future submissions:
 
 **what does it mean for data to be processed? **
+
+* **6** A clear statement about what aspects of the paper you were able to replicate and which parts, if any, you were not able to replicate.
+
+# Proposed Extension
+
+* **6** 500 words about your proposed extension. You do not have to have done the extension yet. (That comes next week.) But it is time to start thinking about what your contribution to human knowledge will be. You seek admission to the School of Athens. What do you have to offer us?
+
+
 
 
 
@@ -59,6 +73,8 @@ All analysis for this paper is available in my github repository.^[https://githu
 
 * An Appendix which include a replication of at least one of the tables from your paper. (It can be a simple summary table.) Also, take a screen shot of the original table and include that image in your Appendix. We want to see how closely your results match the original paper’s.
 
+* **6** As with other aspects of this project, the exact requirements will vary across students, depending on the complexity of your replication paper. If you paper only has 3 or 4 tables, we expect you to replicate it all. If it has 50 tables, we do not expect that. Use your best judgment and talk with us. You must replicate any result which you plan to use as the base of your extension.
+
 **how to include a screenshot in the pdf?**
 
 # Bibliography
@@ -66,4 +82,4 @@ All analysis for this paper is available in my github repository.^[https://githu
 * A bibliography with at least five references, one of which will be the article you are replicating.
 
 **what should my other sources be? I have no idea??**
-**also need to be sure to 
+
