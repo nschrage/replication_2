@@ -8,7 +8,7 @@ biblio-style: "apalike"
 link-citations: false
 toc: false
 nocite: |
-  @Enos16, @King06, @King00, @Enos14, @Fossett89, @Kinder96, @Craig18, @Dinesen15
+  @Enos16, @King06, @King00, @Enos14, @Fossett89, @Kinder96, @Craig18, @Dinesen15, @King95
 
 ---
 
@@ -26,6 +26,10 @@ library(stargazer)
 library(knitr)
 library(styler)
 library(bookdown)
+library(rstanarm)
+library(patchwork)
+library(ggplot2)
+library(ggthemes)
 
 options(tinytex.verbose = TRUE)
 
@@ -97,10 +101,157 @@ are the results as strong as he suggests.
 
 **how to include a caption**
 
-```{r graphic, echo=FALSE}
+```{r graphic, echo = FALSE, warning = FALSE, fig.align='center', fig.cap="NEED TO WRITE MEANINGFUL FIGURE CAPTION HERE"}
+
+# how is demo.distance/nondemo.distance associated with median income. 
+
+# how should I cut dataset down, it is currently not managable..
+
+# what am I looking at..
+
+# amongst voters who voted in every general election between 1996 and 2004
+
+# Looking at inequality within wards...
+
+x <- read_csv("~/Desktop/Gov_1006_Projects/replication_2/dataverse_files/data.votechoice.2010.csv", col_types = cols(
+  X1 = col_double(),
+  ward_pre = col_character(),
+  obama_sen_primary_pct = col_double(),
+  keyes_pct = col_double(),
+  bush2004_pct = col_double(),
+  obama_pres_primary_pct = col_double(),
+  mccain_pct = col_double(),
+  votes_cast_2004_sen_dem_primary = col_double(),
+  votes_cast_2004_senate = col_double(),
+  votes_cast_2004_president = col_double(),
+  votes_cast_2008_president_dem_primary = col_double(),
+  votes_cast_2008_president = col_double(),
+  nondemo.distance = col_double(),
+  demo.distance = col_double(),
+  white_median_income = col_double(),
+  black_median_income = col_double(),
+  white_name = col_double(),
+  black_name = col_double(),
+  registrants = col_double()
+)) %>%  
+  
+  separate(ward_pre, "ward", sep = " ") %>% 
+  
+  mutate(ward = as.numeric(ward)) %>% 
+  
+  group_by(ward) %>% 
+  
+  summarize(mean_obama_sen = mean(obama_sen_primary_pct), mean_obama_pres = mean(obama_pres_primary_pct), mean_mccain = mean(mccain_pct), mean_white_income = mean(white_median_income), mean_black_income = mean(black_median_income), avg_demo_dist = mean(demo.distance), avg_nondemo_dist = mean(nondemo.distance), votes2008 = mean(votes_cast_2008_president_dem_primary), votes2004 = mean(votes_cast_2004_sen_dem_primary), white_name_mean = mean(white_name), black_name_mean = mean(black_name)) %>% 
+  
+  mutate(total = mean_white_income + mean_black_income) %>% 
+  
+  mutate(total_name = black_name_mean + white_name_mean) %>% 
+  
+  mutate(white_income_percentage = mean_white_income/total) %>% 
+  
+  mutate(white_name_percentage = white_name_mean/total_name) %>% 
+  
+  arrange(ward)
+
+g1<- x %>% 
+  
+  ggplot(aes(x = total, y = mean_obama_sen)) +
+  
+  geom_point() + 
+  
+  theme_bw() #+ 
+  
+  #labs(title = "" , subtitle = "2004 Ilinois Senate Primary") +
+  
+  #xlab("White Income Percentage as a Total of Ward") +
+  
+  #ylab("Percentage of Votes for Obama") 
+
+  
+  
+
+g2<- x %>% 
+  
+  ggplot(aes(x = total, y = mean_obama_pres)) +
+  
+  geom_point() + 
+  
+  theme_bw() #+
+  
+  #labs(title = "TITLE" , subtitle = "2008 Ilinois Presidential Election Primary") +
+  
+  #xlab("X AXIS") +
+  
+  #ylab("Y AXIS")
+
+
+g3<- x %>% 
+  
+  ggplot(aes(x = mean_white_income, y = mean_obama_sen)) +
+  
+  geom_point() + 
+  
+  theme_bw() #+ 
+  
+  #labs(title = "" , subtitle = "2004 Ilinois Senate Primary") +
+  
+  #xlab("White Income Percentage as a Total of Ward") +
+  
+  #ylab("Percentage of Votes for Obama") 
+
+  
+  
+
+g4<- x %>% 
+  
+  ggplot(aes(x = mean_white_income, y = mean_obama_pres)) +
+  
+  geom_point() + 
+  
+  theme_bw() #+
+  
+  #labs(title = "TITLE" , subtitle = "2008 Ilinois Presidential Election Primary") +
+  
+  #xlab("X AXIS") +
+  
+  #ylab("Y AXIS")
+
+
+
+  
+  
+
+
+
+  
+
+# g1 | g3
+
+
+  
+# ***data.votechoice.2010.csv***
+# 'ward_pre': unique identifier for the ward
+# 'obama_sen_primary_pct':  percent of votes cast for Barack Obama in 2004 Senate Primary
+# 'keyes_pct': percent of votes cast for Alan Keyes in 2004 Senate General
+# 'bush2004_pct': percent of votes cast for George Bush in 2000
+# 'obama_pres_primary_pct': percent of votes cast for Barack Obama in 2008 Primary
+# 'mccain_pct': percent of votes cast for John McCain in 2008
+# 'votes_cast_2004_sen_dem_primary': total votes cast in 2004 Democratic Senate Primary
+# 'votes_cast_2004_senate': total votes cast in 2004 Senate General race
+# 'votes_cast_2004_president': : total votes cast in 2004 Presidential race
+# 'votes_cast_2008_president_dem_primary': : total votes cast in 2004 Democratic Presidential Primary
+# 'votes_cast_2008_president': total votes cast in 2008 Presidential race
+# 'nondemo.distance': Euclidean distance of ward to nearest non-demolished project in 2004
+# 'demo.distance': Euclidean distance of ward to nearest demolished project in 2004
+# 'white_median_income': median income of white voters in the ward
+# 'black_median_income': median income of black voters in the ward
+# 'white_name': average probability of being white, based on name and location, as described in article
+# 'black_name': average probability of being black, based on name and location, as described in article
+# 'registrants': total number of registered voters 
+
+
 
 ```
-
 
 
 
@@ -193,7 +344,7 @@ for (i in 1:nrow(wtreat)) { ## turning into matrices helps below with segment fu
 
   ## name graphs
   if (i == 7) {
-    pdf("Figure_1.pdf")
+    fig_1 <- pdf("Figure_1.pdf")
   }
   else {
     pdf(paste("Figure_A1", use.letters[i], ".pdf", sep = ""))
@@ -279,67 +430,292 @@ for (i in 1:nrow(wtreat)) { ## turning into matrices helps below with segment fu
   dev.off()
 }
 
+fig_1
+
 pdf("Figure_1.pdf")
+```
+
+
+## Figure 1 TAKE 2
+
+```{r setting up replication 2, echo = FALSE, message=FALSE}
+
+# setting up global values
+
+# this package is about statistical estimates.
+library(ei)
+# package helpful for matching treated and control groups with similar covariate
+# distributions.
+library(MatchIt)
+# package for producing simple weighted statistics
+library(weights)
+# simple bootstrapping -- didn't know this existed.
+library(simpleboot)
+# helpful statistics package, especially for modeling
+library(Zelig)
+# package that helps format latex objects side by side
+library(apsrtable)
+
+### master graphic parameters for graphics
+ylims <- c(-.35, .1)
+ylims.2 <- c(-.45, .1)
+xlims <- c(.5, 11)
+dists <- seq(from = 1000, to = 100, by = -100) ### DELETE THIS LATER
+xs <- seq(1:length(dists))
+ys <- seq(from = -.35, to = .1, by = .05)
+ys.lab <- c("-0.35", "-0.30", "-0.25", "-0.20", "-0.15", "-0.10", "-0.05", "0.00", "0.05", "0.10")
+ys.2 <- seq(from = -.45, to = .1, by = .05)
+ys.lab.2 <- c("-0.45", "-0.40", "-0.35", "-0.30", "-0.25", "-0.20", "-0.15", "-0.10", "-0.05", "0.00", "0.05", "0.10")
+
+offsets <- .15
+text.offsets <- .025
+cex.axis <- .9
+cex.N <- .7
+top.text.adj <- c(1.3, 1.3) ## offsets on labels to reduce crowding
+bottom.text.adj <- c(-.15, -.85)
+point.size <- 2
+line.offset <- .0175
+```
+
+
+```{r figure 1 2, echo = FALSE, results="asis"}
+
+# how to display results.
+
+# how to only display graph 1, not the appendix stuff
+
+# need to spend more time going through here and figuring out what does what.
+# should I just turn in milestone #5 before milestone #6 or should I just go along and do both at the same time.
+
+## load data
+
+# IMPORTANT --> FOR SOME REASON I NEED TO PUT IN THE FULL FILE PATH IN ORDER FOR THIS TO WORK... DOESN'T THIS MAKE IT HARDER FOR MY WORK TO BE REPLICATED? WHAT SHOULD I DO HERE? AM GOING TO PROCEEDE SO THAT I CAN GET STUFF DOWN.
+
+# ALSO WHY DO THE GRAPHS APPEAR IN SEPARATE PDFS, HOW CAN I GET THEM TO APPEAR WITHIN THIS MARKDOWN DOCUMENT?
+
+wtreat <- read.csv("~/Desktop/Gov_1006_Projects/replication_2/dataverse_files/white.treat.effect.mean.boot.csv")
+
+wtreat.lower <- read.csv("~/Desktop/Gov_1006_Projects/replication_2/dataverse_files/white.treat.effect.conf.boot.lower.csv")
+
+wtreat.upper <- read.csv("~/Desktop/Gov_1006_Projects/replication_2/dataverse_files/white.treat.effect.conf.boot.upper.csv")
+
+Nwtreat <- read.csv("~/Desktop/Gov_1006_Projects/replication_2/dataverse_files/white.treat.N.csv")
+
+btreat <- read.csv("~/Desktop/Gov_1006_Projects/replication_2/dataverse_files/black.treat.effect.mean.boot.csv")
+
+btreat.lower <- read.csv("~/Desktop/Gov_1006_Projects/replication_2/dataverse_files/black.treat.effect.conf.boot.lower.csv")
+
+btreat.upper <- read.csv("~/Desktop/Gov_1006_Projects/replication_2/dataverse_files/black.treat.effect.conf.boot.upper.csv")
+
+Nbtreat <- read.csv("~/Desktop/Gov_1006_Projects/replication_2/dataverse_files/black.treat.N.csv")
+
+## letters for marking graphs, one is not used
+ #use.letters <- c("a", "b", "c", "d", "e", "f", "skip", "g", "h")
+
+## cycle through each line of data, each of which are groups defined by diferent namepcts
+
+#for (i in 1:nrow(wtreat)) 
+  { ## turning into matrices helps below with segment function
+    
+  use.wtreat <- as.matrix(wtreat[7, ])
+  use.wlower <- as.matrix(wtreat.lower[7, ])
+  use.wupper <- as.matrix(wtreat.upper[7, ])
+  use.Nwtreat <- as.matrix(Nwtreat[7, ])
+  use.btreat <- as.matrix(btreat[7, ])
+  use.blower <- as.matrix(btreat.lower[7, ])
+  use.bupper <- as.matrix(btreat.upper[7, ])
+  use.Nbtreat <- as.matrix(Nbtreat[7, ])
+
+  # how to just get figure_1.pdf to display
+  # also how to get the pdf to display in my document?
+
+  ## name graphs
+  # if (i == 7) {
+  #   
+  #   pdf("Figure_1.pdf")
+  # }
+   
+  # else {
+  #   pdf(paste("Figure_A1", use.letters[i], ".pdf", sep = ""))
+  # }
+  
+  
+  par(las = 1)
+  
+  par(mar = c(5.1, 4.1, .5, .5))
+ 
+  plot(xs, use.wtreat,
+    ylim = ylims,
+    xlim = xlims,
+    type = "n",
+    ylab = "Treatment Effect",
+    xlab = "Treated Group Distance from Projects",
+    xaxt = "n",
+    yaxt = "n.csv"
+  )
+  
+  ## ZERO LINE
+  
+  abline(h = 0, lty = 2)
+
+  ### draw lines first because I want them to be covered by points
+  #### create spaces in lines using the offset (this allows the N to be displayed with the text() function)
+  
+  ## black lines are offset to the left, white lines to the right
+  segments(
+    x0 = xs[1:2] + offsets, x1 = xs[1:2] + offsets, ## only do it for low N blacks because otherwise lines look funny
+    y0 = use.btreat[, 1:2], y1 = use.blower[, 1:2]
+  )
+  
+  segments(
+    x0 = xs[1:2] + offsets, x1 = xs[1:2] + offsets,
+    y0 = use.btreat[, 1:2] + line.offset, y1 = use.bupper[, 1:2]
+  )
+  
+  ## now the others
+  segments(
+    x0 = xs[3:10] + offsets, x1 = xs[3:10] + offsets,
+    y0 = use.blower[, 3:10], y1 = use.bupper[, 3:10]
+  )
+
+  segments(
+    x0 = xs - offsets, x1 = xs - offsets, ## bottomlines
+    y0 = use.wtreat - line.offset, y1 = use.wlower
+  )
+
+  segments(
+    x0 = xs - offsets, x1 = xs - offsets, ## toplines
+    y0 = use.wtreat, y1 = use.wupper
+  )
+
+
+  ## points and N descriptions
+  
+  ## WHITE DOT POINTS
+  points(xs - offsets, use.wtreat,
+    cex = point.size,
+    pch = 21,
+    bg = "white",
+    col = "black"
+  )
+  
+  ## WHITE DOT LABELS
+  text(xs - offsets, use.wtreat,
+    paste("(", use.Nwtreat, ")", sep = ""),
+    cex = cex.N,
+    adj = top.text.adj,
+    pos = 1
+  )
+  
+  ## BLACK Dot Points
+
+  points(xs + offsets, use.btreat,
+    pch = 16,
+    cex = point.size
+  )
+  
+  ## Black Dot Lables
+  
+  text(xs + offsets, use.btreat,
+    paste("(", use.Nbtreat, ")", sep = ""),
+    cex = cex.N,
+    adj = bottom.text.adj,
+    pos = 3
+  )
+  
+  ## X AXIS Controls
+
+  axis(
+    side = 1,
+    at = xs,
+    label = seq(100, 1000, 100),
+    cex.axis = cex.axis
+  )
+  
+  ## Y AXIS Controls
+  
+  axis(
+    side = 2,
+    at = ys,
+    label = ys.lab,
+    cex.axis = cex.axis
+  )
+
+  dev.print()
+}
+
+
+
+
+
 ```
 
 ## Figure #2 and #3
 
-```{r figures 2-3, echo=FALSE}
+```{r figures 2-3, echo=FALSE, results = "asis"}
 
 ## this cycles thorugh a bunch of dataframes, each of which is needed for a different graph
 for (figure in c("white.basic.main", "white.demo.main", "white.demo.property", "white.demo.localrace", "blackmain", "blackcensus")) {
-  if (figure == "white.basic.main") {
-    ## this group is different than the rest because the second set is not actually a diff in diff, but calling it "diffs" for consistency
-    treat <- read.csv("~/Desktop/Gov_1006_Projects/replication_2/dataverse_files/white.match.basic.csv")
-    treat.2 <- read.csv("~/Desktop/Gov_1006_Projects/replication_2/dataverse_files/white.match.basic.property.csv")
-    fig.nums <- c("A3", "A4") ## figure names
-    pchs <- c(17, 17) ## point types
-  }
+
+  # if (figure == "white.basic.main") {
+  #
+  #    ## this group is different than the rest because the second set is not actually a diff in diff, but calling it "diffs" for consistency
+  #   treat <- read.csv("~/Desktop/Gov_1006_Projects/replication_2/dataverse_files/white.match.basic.csv")
+  #   treat.2 <- read.csv("~/Desktop/Gov_1006_Projects/replication_2/dataverse_files/white.match.basic.property.csv")
+  #   fig.nums <- c("A3", "A4") ## figure names
+  #   pchs <- c(17, 17) ## point types
+  # }
+  
   if (figure == "white.demo.main") {
     treat <- read.csv("~/Desktop/Gov_1006_Projects/replication_2/dataverse_files/white.match.nondemolished.csv")
     diffs <- read.csv("~/Desktop/Gov_1006_Projects/replication_2/dataverse_files/white.match.nondemolished.diffs.csv")
-    fig.nums <- c("2", "A5")
-    pchs <- c(17, 22)
+    fig.nums <- c("2")
+    pchs <- c(17)
   }
-  if (figure == "white.demo.property") {
-    treat <- read.csv("~/Desktop/Gov_1006_Projects/replication_2/dataverse_files/white.match.nondemolished.property.csv")
-    diffs <- read.csv("~/Desktop/Gov_1006_Projects/replication_2/dataverse_files/white.match.nondemolished.diffs.property.csv")
-    fig.nums <- c("A6", "A7")
-    pchs <- c(17, 22)
-  }
-  if (figure == "white.demo.localrace") {
-    treat <- read.csv("~/Desktop/Gov_1006_Projects/replication_2/dataverse_files/white.match.nondemolished.localrace.csv")
-    diffs <- read.csv("~/Desktop/Gov_1006_Projects/replication_2/dataverse_files/white.match.nondemolished.diffs.localrace.csv")
-    fig.nums <- c("A8", "A9")
-    pchs <- c(17, 22)
-  }
+
+  # if (figure == "white.demo.property") {
+  #   treat <- read.csv("~/Desktop/Gov_1006_Projects/replication_2/dataverse_files/white.match.nondemolished.property.csv")
+  #   diffs <- read.csv("~/Desktop/Gov_1006_Projects/replication_2/dataverse_files/white.match.nondemolished.diffs.property.csv")
+  #   fig.nums <- c("A6", "A7")
+  #   pchs <- c(17, 22)
+  # }
+
+  # if (figure == "white.demo.localrace") {
+  #   treat <- read.csv("~/Desktop/Gov_1006_Projects/replication_2/dataverse_files/white.match.nondemolished.localrace.csv")
+  #   diffs <- read.csv("~/Desktop/Gov_1006_Projects/replication_2/dataverse_files/white.match.nondemolished.diffs.localrace.csv")
+  #   fig.nums <- c("A8", "A9")
+  #   pchs <- c(17, 22)
+  # }
+  
   if (figure == "blackmain") {
     treat <- read.csv("~/Desktop/Gov_1006_Projects/replication_2/dataverse_files/white.match.black.property.csv")
     diffs <- read.csv("~/Desktop/Gov_1006_Projects/replication_2/dataverse_files/white.match.black.diffs.property.csv")
-    fig.nums <- c("3", "A12")
-    pchs <- c(17, 21)
+    fig.nums <- c("3")
+    pchs <- c(17)
   }
-  if (figure == "blackcensus") {
-    treat <- read.csv("~/Desktop/Gov_1006_Projects/replication_2/dataverse_files/white.match.black.csv")
-    diffs <- read.csv("~/Desktop/Gov_1006_Projects/replication_2/dataverse_files/white.match.black.diffs.csv")
-    fig.nums <- c("A10", "A11")
-    pchs <- c(17, 21)
-  }
-
+  
+  # if (figure == "blackcensus") {
+  #   treat <- read.csv("~/Desktop/Gov_1006_Projects/replication_2/dataverse_files/white.match.black.csv")
+  #   diffs <- read.csv("~/Desktop/Gov_1006_Projects/replication_2/dataverse_files/white.match.black.diffs.csv")
+  #   fig.nums <- c("A10", "A11")
+  #   pchs <- c(17, 21)
+  # }
 
   ## define axis for different graphs
-  if (figure %in% c("white.basic.main", "white.demo.main", "blackmain")) {
+ 
+   if (figure %in% c("white.basic.main", "white.demo.main", "blackmain")) {
     use.ylims <- ylims
     use.ys.lab <- ys.lab
     use.ys <- ys
   }
-  else {
-    use.ylims <- ylims.2
-    use.ys.lab <- ys.lab.2
-    use.ys <- ys.2
-  }
+  
+  # else {
+  #   use.ylims <- ylims.2
+  #   use.ys.lab <- ys.lab.2
+  #   use.ys <- ys.2
+  # }
 
-  ## go through pairs for each pair of dataframe
+  # go through pairs for each pair of dataframe
   for (i in 1:2) {
     if (i == 1) {
       use.treat <- treat$coefficient
@@ -353,20 +729,26 @@ for (figure in c("white.basic.main", "white.demo.main", "white.demo.property", "
       cupper <- diffs$high.ci
       use.N.treat <- diffs$N
     }
+
     if (i == 2 & figure == "white.basic.main") { ## white.basic.main figures have slightly different structure
       use.treat <- treat.2$coefficient
       clower <- use.treat - (1.96 * treat.2$stdev)
       cupper <- use.treat + (1.96 * treat.2$stdev)
       use.N.treat <- treat.2$N.treatment + treat.2$N.control
     }
+
     if (figure %in% c("white.demo.main", "blackmain") & i == 1) {
       pdf(paste("Figure_", fig.nums[i], ".pdf", sep = ""))
+
     }
     else {
       pdf(paste("Figure_", fig.nums[i], ".pdf", sep = ""))
     }
+    
     par(las = 1)
+    
     par(mar = c(5.1, 4.1, .5, .5))
+    
     plot(xs, use.treat,
       ylim = use.ylims,
       xlim = xlims,
@@ -376,12 +758,14 @@ for (figure in c("white.basic.main", "white.demo.main", "white.demo.property", "
       xaxt = "n",
       yaxt = "n"
     )
+    
     abline(h = 0, lty = 2)
 
     segments(
       x0 = xs, x1 = xs,
       y0 = use.treat + line.offset, y1 = cupper
     )
+    
     segments(
       x0 = xs, x1 = xs,
       y0 = use.treat, y1 = clower
@@ -394,17 +778,20 @@ for (figure in c("white.basic.main", "white.demo.main", "white.demo.property", "
       bg = "white",
       col = "black"
     )
+    
     text(xs, use.treat,
       paste("(", use.N.treat, ")", sep = ""),
       cex = cex.N,
       pos = 3
     )
+    
     axis(
       side = 1,
       at = xs,
       label = seq(100, 1000, 100),
       cex.axis = cex.axis
     )
+    
     axis(
       side = 2,
       at = use.ys,
@@ -412,10 +799,18 @@ for (figure in c("white.basic.main", "white.demo.main", "white.demo.property", "
       cex.axis = cex.axis
     )
 
-    dev.off()
+    dev.print()
   }
-}
+  }
+
+# black triange 64 = 2
+# black triangle 74 = 3
+
+
+
 ```
+
+
 
 ## Figure #4
 
@@ -454,7 +849,7 @@ axis.labs <- list(
 for (i in 1:2) {
   colnames(datas[[i]]) <- c("mean", "sd", "50%", "2.5%", "97.5%") ## saving renames columns, so name back
 
-  pdf(paste("Figure_4", use.letters[i], ".pdf", sep = ""))
+  png(paste("Figure_4", use.letters[i], ".png", sep = ""))
   par(las = 1)
   par(mar = c(5.1, 4.1, .5, .5))
   plot(xs[[i]], datas[[i]][, "mean"],
@@ -493,10 +888,17 @@ for (i in 1:2) {
     labels = axis.labs[[i]],
     cex.axis = cex.axis
   )
+  
 
   dev.off()
 }
+
+
 ```
+![Figure 4a](./Figure_4a.png)
+
+
+![Figure 4b](./Figure_4b.png)
 
 ## Figure #5 and #6
 
@@ -641,7 +1043,7 @@ for (i in graphs) {
 
 # Bibliography
 
-* A bibliography with at least five references, one of which will be the article you are replicating for your extension.
+
 
 
 
