@@ -1,0 +1,159 @@
+---
+title: "Extension"
+author: "Niel Schrage"
+date: "5/6/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(bookdown)
+library(tinytex)
+library(gt)
+library(gtsummary)
+library(stargazer)
+library(knitr)
+library(styler)
+library(bookdown)
+library(rstanarm)
+library(patchwork)
+library(ggplot2)
+library(ggthemes)
+library(lubridate)
+library(purrr)
+library(bayesboot)
+
+
+# setting up global values
+
+# this package is about statistical estimates.
+library(ei)
+# package helpful for matching treated and control groups with similar covariate
+# distributions.
+library(MatchIt)
+# package for producing simple weighted statistics
+library(weights)
+# simple bootstrapping -- didn't know this existed.
+library(simpleboot)
+# helpful statistics package, especially for modeling
+library(Zelig)
+# package that helps format latex objects side by side
+library(apsrtable)
+
+```
+
+```{r reading in data echo=FALSE}
+
+# loading data
+x <- read_csv("~/Desktop/Gov_1006_Projects/replication_2/dataverse_files/data.turnout.csv", col_types = cols(
+  .default = col_double(),
+  reg = col_date(format = ""),
+  s = col_character()
+)) 
+
+
+
+```
+
+```{r data work}
+
+# creating some global variable 
+# change later obviously
+dist <- 100
+
+# I think I can use this later in the creation of some of the images. 
+dists <- seq(from = 100, to = 1000, by = 100)
+
+# wow this was not that hard at all, i totally blew this out of proportion... 
+
+# where do the estimations come from
+# figure out how to run the regressions he does... 
+# makes more sense to just translate from base r, don't want to deal with drama again... 
+
+ white <- x %>% 
+  
+  # filter by name pct as enos does
+  
+  filter(whitename >= 0.975) %>% 
+
+  # following along with the code he gives as well, in turnout.r 
+  # registration date cut off
+
+  filter(reg < "2000-10-10") 
+ 
+
+# setting up treatment and control groups
+
+# wait I'm getting worried I set this up all wrong, or rather that the design of my extension is insufficient.
+ 
+ # adapted from enos code, to iterate over distances 
+ 
+black <- x %>% 
+  
+  # filter by name pct as Enos does
+  
+  filter(blackname >= 0.975) %>% 
+
+  # following along with the code he gives as well, in turnout.r 
+  # registration date cut off
+
+  filter(reg < "2000-10-10")
+
+
+# creating treatment and control groups, adapted from enos code.
+
+for(h in 1:length(dists)){
+      	treatment_white = white[white$demo.distance<=dists[h],]
+      	control_white = white[white$demo.distance>dists[h],]
+      	treatment_black = black[black$demo.distance<=dists[h],]
+      	control_black = black[black$demo.distance>dists[h],] 
+}
+
+# I know there is some iteration that I can do that would make my life so much 
+
+w <- map(treatment_white, .f = filter(treatment_white$demo.distance > dist))
+ 
+
+# so is this the model being run
+# in his words... 
+# i'm having some trouble bootstrapping confidence intervals. 
+
+##for white and black subjects, perform t test of differences of means with boostrapped standard errors 
+
+white.boot = two.boot((treatment_white$vote2004- treatment_white$vote2000),(control_white$vote2004- control_white$vote2000),mean, R = 1000, na.rm=T)
+  
+
+# bootstrapping means
+
+for(h in 1:length(dists)){
+			white.boot = two.boot((treatment_white$vote2004- treatment_white$vote2000),(control_white$vote2004- control_white$vote2000),mean, R = 1000, na.rm=T)
+			white.treat.effect.mean.boot[h] = white.boot$t0
+			white.boot.ci = boot.ci(white.boot, type = 'basic')
+			white.treat.effect.conf.boot.lower[h] = white.boot.ci$basic[4]
+			white.treat.effect.conf.boot.upper[h] = white.boot.ci$basic[5]
+}
+
+boot.ci(white.boot, type = 'basic')
+
+
+# where does the turn out stuff come into play
+  
+  
+## for white and black subjects, perform t test of differences of means with
+## boostrapped standard errors
+  
+# try to recreate graphic #1. 
+
+
+  
+
+
+  
+```
+
+```{r creating graphic}
+
+```
+
