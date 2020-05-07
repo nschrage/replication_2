@@ -24,6 +24,7 @@ library(ggthemes)
 library(lubridate)
 library(purrr)
 library(bayesboot)
+library(dplyr)
 
 #library(boot)
 
@@ -75,8 +76,11 @@ x <- read_csv("~/Desktop/Gov_1006_Projects/replication_2/dataverse_files/data.tu
 dists <- seq(from = 100, to = 1000, by = 100)
 
 
+
 # don't really understand this...
-namepcts = c(seq(from = .91, to = .96, by = .01),.975,.99,1)
+namepcts = 1
+  
+  #c(seq(from = .91, to = .96, by = .01),.975,.99,1)
 
 ##matrices for stroing results
 res.mat = matrix(nrow=length(namepcts),ncol=length(dists))
@@ -303,7 +307,7 @@ ggplot() +
 
 ```
 
-```{r parallel trends,}
+```{r parallel trends basic,}
 
 # I think this is the one ill do
 
@@ -318,16 +322,20 @@ colnames(outmat) = c('white.treatment','white.control','black.treatment','black.
 
 x <- x %>% 
   
-  filter(reg < "1996-10-08") 
+  filter(reg < "1996-10-08") %>% 
 
-  filter(is.na($reg) == F)
+  filter(is.na(reg) == F)
 
 
 ##define a treatment and control group for each name percent
-useW = use.data[use.data$whitename>=.975,]
-useB = use.data[use.data$blackname>=.975,]
+useW = x[x$whitename>=.975,]
+useB = x[x$blackname>=.975,]
 
 ##set distance for parallel trends test to 200 meters, can be tested at other distances too (MAYBE THIS IS MY PROJECT)  
+
+# I DONT REALLY UNDERSTAND WHAT CHANGING THIS DOES... WHY WOULD THIS BE A BIG DIFFERENCE.
+
+# 300, 500, 1000
 
 treatment_white = useW[useW$demo.distance<=200,]
 treatment_black = useB[useB$demo.distance<=200,]
@@ -342,17 +350,220 @@ BcontN = nrow(control_black)
 ##test turnout across difference elections     
 for(i in 1:length(elections)){
 		election = elections[i]
-		outmat[i,'white.treatment'] = sum(Wtreat[election],na.rm=T)/WtreatN
-	   outmat[i,'black.treatment'] = sum(Btreat[election],na.rm=T)/BtreatN
-	   outmat[i,'white.control'] = sum(Wcont[election],na.rm=T)/WcontN
-	   outmat[i,'black.control'] = sum(Bcont[election],na.rm=T)/BcontN  
+		outmat[i,'white.treatment'] = sum(treatment_white[election],na.rm=T)/WtreatN
+	   outmat[i,'black.treatment'] = sum(treatment_black[election],na.rm=T)/BtreatN
+	   outmat[i,'white.control'] = sum(control_white[election],na.rm=T)/WcontN
+	   outmat[i,'black.control'] = sum(control_black[election],na.rm=T)/BcontN  
 	 }
 	    
-parallel.trends = outmat
+parallel.trends_200 = outmat
+
+parallel.trends_200 <- as.data.frame((parallel.trends_200))
+
+elections <- c('vote1996','vote1998','vote2000','vote2002','vote2004')
+
+elections <- as.data.frame(elections)
+
+parallel.trends_200 <- data.frame(parallel.trends_200, elections) 
+
+g1 <- parallel.trends_200 %>% 
+  
+  ggplot(aes(x = elections)) +
+  
+  geom_point(aes(y = white.treatment, color = "white")) +
+  
+  geom_point(aes(y = white.control, color = "red")) +
+  
+  geom_point(aes(y = black.treatment, color = "black")) +
+  
+  geom_point(aes(y = black.control, color = "blue")) +
+  
+  scale_y_continuous(labels = c(0, .25, .50, .75, 1.0),limits = c(0,1), name = "Voting Turnout") + 
+  
+  scale_x_discrete(labels = c(1996, 1998, 2000, 2002, 2004), name = "Voting Turnout") +
+  
+  theme_classic() +
+  
+  geom_abline(x = "election2002", y =0)
+
+
+
+
+
+# is this bayesian... is there a way of doing a bayesian spin on this.. i am confused.
+
+# show the difference in differences of parallel trends???? 
 
 ```
 
-```{r}
+```{r parallel_trends_extension}
+
+# I think this is the one ill do
+
+##these are the elections to look at
+elections = c('vote1996','vote1998','vote2000','vote2002','vote2004')
+
+##matrices for storing results
+outmat = matrix(nrow=length(elections), ncol=4)
+colnames(outmat) = c('white.treatment','white.control','black.treatment','black.control')
+
+##use different registration cutoff here because going all the way back to 1996
+
+x <- x %>% 
+  
+  filter(reg < "1996-10-08") %>% 
+
+  filter(is.na(reg) == F)
+
+
+##define a treatment and control group for each name percent
+useW = x[x$whitename>=.975,]
+useB = x[x$blackname>=.975,]
+
+##set distance for parallel trends test to 200 meters, can be tested at other distances too (MAYBE THIS IS MY PROJECT)  
+
+# I DONT REALLY UNDERSTAND WHAT CHANGING THIS DOES... WHY WOULD THIS BE A BIG DIFFERENCE.
+
+# 300, 500, 1000
+
+treatment_white = useW[useW$demo.distance <= 2000,]
+treatment_black = useB[useB$demo.distance <= 2000,]
+control_white = useW[useW$demo.distance > 2000,]
+control_black = useB[useB$demo.distance > 2000,]     		
+
+WtreatN = nrow(treatment_white)
+BtreatN = nrow(treatment_black)
+WcontN = nrow(control_white)
+BcontN = nrow(control_black)
+     
+##test turnout across difference elections     
+for(i in 1:length(elections)){
+		election = elections[i]
+		outmat[i,'white.treatment'] = sum(treatment_white[election],na.rm=T)/WtreatN
+	   outmat[i,'black.treatment'] = sum(treatment_black[election],na.rm=T)/BtreatN
+	   outmat[i,'white.control'] = sum(control_white[election],na.rm=T)/WcontN
+	   outmat[i,'black.control'] = sum(control_black[election],na.rm=T)/BcontN  
+	 }
+	    
+parallel.trends_1000 = outmat
+
+parallel.trends_1000 <- as.data.frame((parallel.trends_1000))
+
+elections <- c('vote1996','vote1998','vote2000','vote2002','vote2004')
+
+elections <- as.data.frame(elections)
+
+parallel.trends_1000  <- data.frame(parallel.trends_1000, elections) 
+
+g2 <- parallel.trends_1000  %>% 
+  
+  ggplot(aes(x = elections)) +
+  
+  geom_point(aes(y = white.treatment, color = "white")) +
+  
+  geom_point(aes(y = white.control, color = "red")) +
+  
+  geom_point(aes(y = black.treatment, color = "black")) +
+  
+  geom_point(aes(y = black.control, color = "blue")) +
+  
+  scale_y_continuous(labels = c(0, .25, .50, .75, 1.0),limits = c(0,1), name = "Voting Turnout") + 
+  
+  scale_x_discrete(labels = c(1996, 1998, 2000, 2002, 2004), name = "Voting Turnout") +
+  
+  theme_classic() +
+  
+  geom_abline(x = "election2002", y =0)
+
+g1 | g2
+
+
+
+
+
+# is this bayesian... is there a way of doing a bayesian spin on this.. i am confused.
+
+# show the difference in differences of parallel trends???? 
+
+```
+```{r pt100}
+
+# I think this is the one ill do
+
+##these are the elections to look at
+elections = c('vote1996','vote1998','vote2000','vote2002','vote2004')
+
+##matrices for storing results
+outmat = matrix(nrow=length(elections), ncol=4)
+colnames(outmat) = c('white.treatment','white.control','black.treatment','black.control')
+
+##use different registration cutoff here because going all the way back to 1996
+
+x <- x %>% 
+  
+  filter(reg < "1996-10-08") %>% 
+
+  filter(is.na(reg) == F)
+
+
+##define a treatment and control group for each name percent
+useW = x[x$whitename>=.975,]
+useB = x[x$blackname>=.975,]
+
+##set distance for parallel trends test to 200 meters, can be tested at other distances too (MAYBE THIS IS MY PROJECT)  
+
+# I DONT REALLY UNDERSTAND WHAT CHANGING THIS DOES... WHY WOULD THIS BE A BIG DIFFERENCE.
+
+# 300, 500, 1000
+
+treatment_white = useW[useW$demo.distance <= 2000,]
+treatment_black = useB[useB$demo.distance <= 2000,]
+control_white = useW[useW$demo.distance > 2000,]
+control_black = useB[useB$demo.distance > 2000,]     		
+
+WtreatN = nrow(treatment_white)
+BtreatN = nrow(treatment_black)
+WcontN = nrow(control_white)
+BcontN = nrow(control_black)
+     
+##test turnout across difference elections     
+for(i in 1:length(elections)){
+		election = elections[i]
+		outmat[i,'white.treatment'] = sum(treatment_white[election],na.rm=T)/WtreatN
+	   outmat[i,'black.treatment'] = sum(treatment_black[election],na.rm=T)/BtreatN
+	   outmat[i,'white.control'] = sum(control_white[election],na.rm=T)/WcontN
+	   outmat[i,'black.control'] = sum(control_black[election],na.rm=T)/BcontN  
+	 }
+	    
+parallel.trends_100 = outmat
+
+parallel.trends_100 <- as.data.frame((parallel.trends_100))
+
+elections <- c('vote1996','vote1998','vote2000','vote2002','vote2004')
+
+elections <- as.data.frame(elections)
+
+parallel.trends_100  <- data.frame(parallel.trends_100, elections) 
+
+parallel.trends_100  %>% 
+  
+  ggplot(aes(x = elections)) +
+  
+  geom_point(aes(y = white.treatment, color = "white")) +
+  
+  geom_point(aes(y = white.control, color = "red")) +
+  
+  geom_point(aes(y = black.treatment, color = "black")) +
+  
+  geom_point(aes(y = black.control, color = "blue")) +
+  
+  scale_y_continuous(labels = c(0, .25, .50, .75, 1.0),limits = c(0,1), name = "Voting Turnout") + 
+  
+  scale_x_discrete(labels = c(1996, 1998, 2000, 2002, 2004), name = "Voting Turnout") +
+  
+  theme_classic() +
+  
+  geom_abline(x = "election2002", y =0)
 
 ```
 
