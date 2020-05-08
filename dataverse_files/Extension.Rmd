@@ -517,10 +517,10 @@ useB = x[x$blackname>=.975,]
 
 # 300, 500, 1000
 
-treatment_white = useW[useW$demo.distance <= 2000,]
-treatment_black = useB[useB$demo.distance <= 2000,]
-control_white = useW[useW$demo.distance > 2000,]
-control_black = useB[useB$demo.distance > 2000,]     		
+treatment_white = useW[useW$demo.distance <= "2000",]
+treatment_black = useB[useB$demo.distance <= "2000",]
+control_white = useW[useW$demo.distance > "2000",]
+control_black = useB[useB$demo.distance > "2000",]     		
 
 WtreatN = nrow(treatment_white)
 BtreatN = nrow(treatment_black)
@@ -534,7 +534,10 @@ for(i in 1:length(elections)){
 	   outmat[i,'black.treatment'] = sum(treatment_black[election],na.rm=T)/BtreatN
 	   outmat[i,'white.control'] = sum(control_white[election],na.rm=T)/WcontN
 	   outmat[i,'black.control'] = sum(control_black[election],na.rm=T)/BcontN  
-	 }
+}
+
+
+# Data Wrangling -- Creating Tibble
 	    
 parallel.trends_100 = outmat
 
@@ -548,6 +551,8 @@ year <- as.tibble(year)
 
 parallel.trends_100  <- tibble(parallel.trends_100, year)
 
+# Building Basic Graphic 
+
 parallel.trends_100_graphic <- parallel.trends_100  %>% 
   
   ggplot(aes(x = value)) +
@@ -555,8 +560,6 @@ parallel.trends_100_graphic <- parallel.trends_100  %>%
   # hjust = 0 moves the point, but i want to do this differently...
   
   geom_text((aes(y = WT, label = "WT"))) +
-  
-
 
   geom_text((aes(y = WC, label = "WC"))) +
   
@@ -570,38 +573,37 @@ parallel.trends_100_graphic <- parallel.trends_100  %>%
   
   scale_x_discrete(breaks = c(1996, 1998, 2000, 2002, 2004), labels = c(1996, 1998, 2000, 2002, 2004), name = "Year") +
   
-  labs(title = "Title Here" ) +
+  labs(title = "Parallel Trends Test", subtitle = "D") +
   
   # geom_vline(xintercept = "2002", color = "red") +
   
   # potentially do an annotate 
   
-  theme_classic()
+  theme_classic()  
   
-  #geom_text()
+parallel.trends_100_graphic_1 <- parallel.trends_100_graphic
+bonjour <- c(1,2,3,4)
+parallel.trends_100 <- as.data.frame(parallel.trends_100)
 
+# Getting the Lines to Show Up, Shouldn't Have Been Its Own Thing BUT HERE WE ARE
 
-helper <- seq(1:5)
-
-parallel.trends_100_graphic
-
-for (i in helper){
-  
-  if (i <= helper[length(helper)] - 2){
-    
-    parallel.trends_100_graphic <- parallel.trends_100_graphic + 
-    
-      geom_segment(aes(x = value[i], y = WT[i], xend = value[i + 1], yend = WT[i + 1]))
-    
+for (j in bonjour) {
+  for(i in bonjour){
+     
+     parallel.trends_100_graphic_1 <- parallel.trends_100_graphic_1 +  
+     
+    geom_segment(x = parallel.trends_100$value[i], y = parallel.trends_100[i, j], 
+                 xend = parallel.trends_100$value[i+1], yend = parallel.trends_100[i+1, j])
+     
   }
   
-  else{
-    
-    parallel.trends_100_graphic <- parallel.trends_100_graphic + 
-    
-      geom_segment(aes(x = value[i], y = WT[i], xend = value[length(parallel.trends_100$WT)], yend = WT[length(parallel.trends_100$WT)]))
-    
-  }
+  parallel.trends_100_graphic_1
+}
+ 
+parallel.trends_100_graphic_1
+
+ 
+
   
   #for (i in parallel.trends_100$value) {
     
@@ -611,11 +613,14 @@ for (i in helper){
     
   #}
   
-}
 
 
 
-parallel.trends_100_graphic
+
+
+# parallel.trends_100_graphic_2
+# 
+# parallel.trends_100_graphic_3
 
 # parallel.trends_100_graphic <- parallel.trends_100_graphic + 
     #geom_segment(aes(x = year[i], y = WT[i], xend = value[length(value)], yend = WT[length(WT)]))
