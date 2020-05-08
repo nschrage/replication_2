@@ -459,23 +459,22 @@ g2 <- parallel.trends_1000  %>%
   
   ggplot(aes(x = elections)) +
   
-  geom_point(aes(y = white.treatment, color = "white")) +
+  geom_point(aes(y = white.treatment, color = "white treat")) +
   
-  geom_point(aes(y = white.control, color = "red")) +
+  geom_point(aes(y = white.control, color = "w c")) +
   
-  geom_point(aes(y = black.treatment, color = "black")) +
+  geom_point(aes(y = black.treatment, color = "bt")) +
   
-  geom_point(aes(y = black.control, color = "blue")) +
+  geom_point(aes(y = black.control, color = "bc")) +
   
   scale_y_continuous(labels = c(0, .25, .50, .75, 1.0),limits = c(0,1), name = "Voting Turnout") + 
   
   scale_x_discrete(labels = c(1996, 1998, 2000, 2002, 2004), name = "Voting Turnout") +
   
-  theme_classic() +
-  
-  geom_abline(x = "election2002", y =0)
+  theme_classic() 
 
-g1 | g2
+g1 
+g2
 
 
 
@@ -486,7 +485,9 @@ g1 | g2
 # show the difference in differences of parallel trends???? 
 
 ```
-```{r pt100}
+```{r pt100_MODELFORTHEREST}
+
+# NEED TO CLEAN UP THIS CODE x1,000,000
 
 # I think this is the one ill do
 
@@ -537,33 +538,80 @@ for(i in 1:length(elections)){
 	    
 parallel.trends_100 = outmat
 
-parallel.trends_100 <- as.data.frame((parallel.trends_100))
+parallel.trends_100 <- as.tibble(parallel.trends_100) %>% 
+  
+  rename("WT" = "white.treatment","WC" = "white.control", "BT" = "black.treatment", "BC" = "black.control")  
 
-elections <- c('vote1996','vote1998','vote2000','vote2002','vote2004')
+year <- c('1996','1998','2000','2002','2004')  
+  
+year <- as.tibble(year) 
 
-elections <- as.data.frame(elections)
-
-parallel.trends_100  <- data.frame(parallel.trends_100, elections) 
+parallel.trends_100  <- tibble(parallel.trends_100, year)
 
 parallel.trends_100  %>% 
   
-  ggplot(aes(x = elections)) +
+  ggplot(aes(x = value)) +
   
-  geom_point(aes(y = white.treatment, color = "white")) +
+  geom_point(aes(y = WT)) +
   
-  geom_point(aes(y = white.control, color = "red")) +
+  # hjust = 0 moves the point, but i want to do this differently...
   
-  geom_point(aes(y = black.treatment, color = "black")) +
+  geom_text((aes(y = WT, label = "WT"))) +
   
-  geom_point(aes(y = black.control, color = "blue")) +
+  geom_point(aes(y = WC)) +
   
-  scale_y_continuous(labels = c(0, .25, .50, .75, 1.0),limits = c(0,1), name = "Voting Turnout") + 
+  geom_text((aes(y = WC, label = "WC"))) +
   
-  scale_x_discrete(labels = c(1996, 1998, 2000, 2002, 2004), name = "Voting Turnout") +
+  geom_point(aes(y = BT, color = "black")) +
   
-  theme_classic() +
+  geom_point(aes(y = BC, color = "blue")) +
+
+  # from = .5, to = .9, by = .05
   
-  geom_abline(x = "election2002", y =0)
+  scale_y_continuous(breaks = c(0.5, 0.55, 0.60, 0.65, 0.70, 0.75, 0.8, 0.85, 0.9), labels = c(0.5, 0.55, 0.60, 0.65, 0.70, 0.75, 0.8, 0.85, 0.9), name = "Percent Voting Turnout") + 
+  
+  scale_x_discrete(breaks = c(1996, 1998, 2000, 2002, 2004), labels = c(1996, 1998, 2000, 2002, 2004), name = "Year") +
+  
+  geom_vline(xintercept = "2002", color = "red") +
+  
+  # potentially do an annotate 
+  
+  theme_classic()
+  
+  #geom_text()
+  
+  # hmm why does it look like that 
+
+```
+
+```{r enos's_code}
+
+# code that enos uses to set limits
+
+par(las = 1)
+		par(mar = c(5.1, 4.1, .5, .5))
+		
+	plot(1,.5,
+			
+	    ylim = c(.5,.9),
+			xlim = c(1,5),
+			type = 'n',
+			xaxt = 'n',
+			ylab = 'Percent Voter Turnout',
+			xlab = 'Year'
+			)
+ 			text(seq(1:5),groups[,'white.control'], expression('W'['C']), cex = 1.5)
+			text(seq(1:5),groups[,'white.treatment'],expression('W'['T']), cex = 1.5)
+			text(seq(1:5),groups[,'black.control'], expression('B'['C']), cex = 1.5)
+			text(seq(1:5),groups[,'black.treatment'],expression('B'['T']), cex = 1.5)
+				
+			lines(seq(1:5),groups[,'white.control'], lty = 2)
+			lines(seq(1:5),groups[,'white.treatment'], lty = 2)
+			lines(seq(1:5),groups[,'black.control'], lty = 2)
+			lines(seq(1:5),groups[,'black.treatment'], lty = 2)
+
+		axis(side = 1, at = seq(1:5), labels = c('1996','1998','2000','2002','2004'))
+		axis(side = 2, at = seq(from = .5, to = .9, by = .05), labels = seq(from = .5, to = .9, by = .05))
 
 ```
 
